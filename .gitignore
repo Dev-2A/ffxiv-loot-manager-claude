@@ -1,0 +1,51 @@
+# .gitignore 파일 생성
+# Python/Django
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+db.sqlite3
+*.log
+local_settings.py
+media/
+
+# React/Node
+ff14_bis_frontend/node_modules/
+ff14_bis_frontend/.pnp
+ff14_bis_frontend/.pnp.js
+ff14_bis_frontend/coverage/
+ff14_bis_frontend/build/
+ff14_bis_frontend/.DS_Store
+ff14_bis_frontend/.env.local
+ff14_bis_frontend/.env.development.local
+ff14_bis_frontend/.env.test.local
+ff14_bis_frontend/.env.production.local
+ff14_bis_frontend/npm-debug.log*
+ff14_bis_frontend/yarn-debug.log*
+ff14_bis_frontend/yarn-error.log*
+
+# Django 가상환경
+venv/
+
+# 기타
+.DS_Store
+.env
+.vscode/
+*.swp
+*.swo
