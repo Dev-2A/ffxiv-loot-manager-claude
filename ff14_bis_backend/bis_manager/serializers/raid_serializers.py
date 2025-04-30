@@ -4,7 +4,7 @@ from bis_manager.models import RaidProgress, ItemAcquisition, DistributionPriori
 class ItemAcquisitionSerializer(serializers.ModelSerializer):
     player_nickname = serializers.ReadOnlyField(source='player.nickname')
     item_name = serializers.ReadOnlyField(source='item.name')
-    item_tupe = serializers.ReadOnlyField(source='item.type')
+    item_type = serializers.ReadOnlyField(source='item.type')
     item_type_display = serializers.ReadOnlyField(source='item.get_type_display')
     
     class Meta:

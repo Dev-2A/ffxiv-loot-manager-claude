@@ -37,6 +37,7 @@ import Loading from '../../components/common/Loading';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import SeasonSelector from '../../components/common/SeasonSelector';
 import { calculateBisProgress } from '../../utils/helpers';
+import JobIcon from '../../components/common/JobIcon';
 
 const BisManager = () => {
   const queryClient = useQueryClient();
@@ -265,7 +266,12 @@ const BisManager = () => {
                 <MenuItem value="">플레이어 선택</MenuItem>
                 {players.map((player) => (
                   <MenuItem key={player.id} value={player.id}>
-                    {player.nickname} ({player.job_display})
+                    <Box sx={{ display: 'flex', alignItems: 'center'}}>
+                      <JobIcon job={player.job} size={24} />
+                      <Typography sx={{ ml: 1.5 }}>
+                        {player.nickname} ({player.job_display})
+                      </Typography>
+                    </Box>
                   </MenuItem>
                 ))}
               </Select>

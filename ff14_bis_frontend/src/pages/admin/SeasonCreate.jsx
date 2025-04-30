@@ -40,7 +40,7 @@ const SeasonCreate = () => {
           variant='outlined'
           onClick={handleCancel}
         >
-          최소
+          취소
         </Button>
       </Box>
 

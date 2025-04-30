@@ -72,7 +72,7 @@ class ResourceCalculationService:
                     player=player,
                     season=season,
                     resource_type=resource_type,
-                    defautls={'total_needed': amount}
+                    defaults={'total_needed': amount}
                 )
             
             return resources

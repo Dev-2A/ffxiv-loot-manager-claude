@@ -31,6 +31,7 @@ import { getPlayers, deletePlayer } from '../../api/playersApi';
 import Loading from '../../components/common/Loading';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import { getJobTypeColor } from '../../utils/helpers';
+import JobIcon from '../../components/common/JobIcon';
 
 const PlayerManagement = () => {
 	const navigate = useNavigate();
@@ -157,7 +158,12 @@ const PlayerManagement = () => {
 							{players.map((player) => (
 								<TableRow key={player.id}>
 									<TableCell>{player.nickname}</TableCell>
-									<TableCell>{player.job_display}</TableCell>
+									<TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <JobIcon job={player.job} size={32} />
+                      <Typography sx={{ ml: 1.5 }}>{player.job_display}</Typography>
+                    </Box>
+                  </TableCell>
 									<TableCell>
 										<Chip
 											label={player.job_type_display}

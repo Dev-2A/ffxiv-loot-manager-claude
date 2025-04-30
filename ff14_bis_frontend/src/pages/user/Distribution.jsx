@@ -40,6 +40,7 @@ import Loading from '../../components/common/Loading';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import SeasonSelector from '../../components/common/SeasonSelector';
 import { getJobTypeColor } from '../../utils/helpers';
+import JobIcon from '../../components/common/JobIcon';
 
 const Distribution = () => {
   const queryClient = useQueryClient();
@@ -288,14 +289,17 @@ const Distribution = () => {
                                     <TableCell>{priority.priority}</TableCell>
                                     <TableCell>{priority.player_nickname}</TableCell>
                                     <TableCell>
-                                      <Chip
-                                        label={priority.player_job_display}
-                                        size="small"
-                                        sx={{
-                                          bgcolor: getJobTypeColor(priority.player_job_type),
-                                          color: 'white',
-                                        }}
-                                      />
+                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <JobIcon job={priority.player_job} size={24} />
+                                        <Chip
+                                          label={priority.player_job_display}
+                                          size="small"
+                                          sx={{
+                                            bgcolor: getJobTypeColor(priority.player_job_type),
+                                            color: 'white',
+                                          }}
+                                        />
+                                      </Box>
                                     </TableCell>
                                   </TableRow>
                                 ))
@@ -374,21 +378,12 @@ const Distribution = () => {
                       return player ? (
                         <Grid item xs={6} sm={4} md={3} lg={2} key={playerId}>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Avatar
-                              sx={{
-                                bgcolor: getJobTypeColor(player.job_type),
-                                width: 30,
-                                height: 30,
-                                mr: 1
-                              }}
-                            >
-                              {player.nickname.charAt(0)}
-                            </Avatar>
-                            <Box>
+                            <JobIcon job={player.job} size={30} />
+                            <Box sx={{ ml: 1.5 }}>
                               <Typography variant='body2' noWrap>
                                 {player.nickname}
                               </Typography>
-                              <Typography variant='body2' color="text.secondary">
+                              <Typography variant='body2' color='text.secondary'>
                                 {count}개 아이템
                               </Typography>
                             </Box>
@@ -436,18 +431,8 @@ const Distribution = () => {
                                   <TableCell>
                                     {player ? (
                                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                        <Avatar
-                                          sx={{
-                                            bgcolor: getJobTypeColor(player.job_type),
-                                            width: 24,
-                                            height: 24,
-                                            mr: 1,
-                                            fontSize: '0.75rem'
-                                          }}
-                                        >
-                                          {player.nickname.charAt(0)}
-                                        </Avatar>
-                                        <Typography variant='body2'>
+                                        <JobIcon job={player.job} size={24} />
+                                        <Typography variant='body2' sx={{ ml: 1.5 }}>
                                           {item.player_name}
                                         </Typography>
                                       </Box>

@@ -16,10 +16,10 @@ class ItemAdmin(admin.ModelAdmin):
     list_filter = ('type', 'source', 'item_level', 'season')
     seaerch_fields = ['name']
 
-admin.register(Player)
+@admin.register(Player)
 class PalyerAdmin(admin.ModelAdmin):
-    list_display = ('nackname', 'job', 'job_type')
-    list_filter = ('johb', 'job_type')
+    list_display = ('nickname', 'job', 'job_type')
+    list_filter = ('job', 'job_type')
     search_fields = ['nickname']
     
 class MateriaInline(admin.TabularInline):

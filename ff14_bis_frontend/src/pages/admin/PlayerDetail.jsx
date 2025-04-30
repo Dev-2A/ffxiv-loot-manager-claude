@@ -6,6 +6,7 @@ import { getPlayer, updatePlayer } from '../../api/playersApi';
 import PlayerForm from '../../components/admin/PlayerForm';
 import Loading from '../../components/common/Loading';
 import ErrorMessage from '../../components/common/ErrorMessage';
+import JobIcon from '../../components/common/JobIcon';
 
 const PlayerDetail = () => {
 	const { id } = useParams();
@@ -46,12 +47,15 @@ const PlayerDetail = () => {
 	return (
 		<Box>
 			<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-				<Typography variant='h4' component="h1">
-					플레이어 정보 수정: {player.nickname}
-				</Typography>
+				<Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <JobIcon job={player.job} size={48} />
+          <Typography variant='h4' component="h1" sx={{ ml: 2 }}>
+            {player.nickname} <Typography component="span" variant='subtitle1' color='text.secondary'>({player.job_display})</Typography>
+          </Typography>
+        </Box>
 				<Button
 					variant="outlined"
-					onCLick={handleCancel}
+					onClick={handleCancel}
 				>
 					취소
 				</Button>

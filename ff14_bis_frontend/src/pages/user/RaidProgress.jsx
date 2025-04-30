@@ -45,6 +45,7 @@ import Loading from '../../components/common/Loading';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import SeasonSelector from '../../components/common/SeasonSelector';
 import { formatDate } from '../../utils/helpers';
+import JobIcon from '../../components/common/JobIcon';
 
 const RaidProgress = () => {
   const queryClient = useQueryClient();
@@ -473,7 +474,12 @@ const RaidProgress = () => {
                   >
                     {players.map((player) => (
                       <MenuItem key={player.id} value={player.id}>
-                        {player.nickname} ({player.job_display})
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <JobIcon job={player.job} size={24} />
+                          <Typography sx={{ ml: 1.5 }}>
+                            {player.nickname} ({player.job_display})
+                          </Typography>
+                        </Box>
                       </MenuItem>
                     ))}
                   </Select>
