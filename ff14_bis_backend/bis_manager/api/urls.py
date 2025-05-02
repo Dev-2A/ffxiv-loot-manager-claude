@@ -22,4 +22,5 @@ router.register(r'resources', ResourceTrackingViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('auth/', include('bis_manager.api.auth_urls')),
 ]

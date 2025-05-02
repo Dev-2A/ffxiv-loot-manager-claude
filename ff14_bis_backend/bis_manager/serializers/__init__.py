@@ -4,3 +4,4 @@ from .player_serializers import PlayerSerializer, PlayerCreateSerializer
 from .bis_serializers import BisSetSerializer, BisItemSerializer, MateriaSerializer
 from .raid_serializers import RaidProgressSerializer, ItemAcquisitionSerializer, DistributionPrioritySerializer
 from .resource_serializers import ResourceTrackingSerializer
+from .user_serializers import UserSerializer, RegisterSerializer
