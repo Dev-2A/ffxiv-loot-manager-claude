@@ -28,11 +28,14 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import PersonIcon from '@mui/icons-material/Person';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
 const Header = ({ toggleSidebar, darkMode, toggleDarkMode }) => {
+  const { currentUser, isAdmin, logout } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const navigate = useNavigate();
   const location = useLocation();
   const [anchorEl, setAnchorEl] = useState(null);
   const [notificationEl, setNotificationEl] = useState(null);
@@ -55,6 +58,11 @@ const Header = ({ toggleSidebar, darkMode, toggleDarkMode }) => {
   };
 
   const handleProfileClick = (event) => {
+    if (!currentUser) {
+      // 로그인이 안 된 경우 로그인 페이지로 이동
+      navigate('/login');
+      return;
+    }
     setProfileEl(event.currentTarget);
   };
 
@@ -518,51 +526,71 @@ const Header = ({ toggleSidebar, darkMode, toggleDarkMode }) => {
             }
           }}
         >
-          <Box sx={{ p: 2, textAlign: 'center' }}>
-            <Avatar 
-              alt="사용자" 
-              src="/images/avatar.png"
-              sx={{ width: 60, height: 60, mx: 'auto', mb: 1, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}
-            />
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              사용자
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              관리자
-            </Typography>
-          </Box>
-          
-          <Divider />
-          
-          <MenuItem onClick={handleProfileClose} sx={{ py: 1.2 }}>
-            <ListItemIcon>
-              <PersonIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText primary="내 프로필" />
-          </MenuItem>
-          
-          <MenuItem onClick={() => {
-            if (toggleDarkMode) toggleDarkMode();
-            handleProfileClose();
-          }} sx={{ py: 1.2 }}>
-            <ListItemIcon>
-              {darkMode ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
-            </ListItemIcon>
-            <ListItemText primary={darkMode ? "라이트 모드" : "다크 모드"} />
-          </MenuItem>
-          
-          <Divider />
-          
-          <MenuItem onClick={handleProfileClose} sx={{ py: 1.2 }}>
-            <ListItemIcon>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M16 17L21 12L16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </ListItemIcon>
-            <ListItemText primary="로그아웃" />
-          </MenuItem>
+          {currentUser ? (
+            <Box>
+              <Box sx={{ p: 2, textAlign: 'center' }}>
+                <Avatar 
+                  alt={currentUser.username} 
+                  src="/images/avatar.png"
+                  sx={{ width: 60, height: 60, mx: 'auto', mb: 1, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}
+                />
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  {currentUser.username}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  {isAdmin ? '관리자' : '일반 회원'}
+                </Typography>
+              </Box>
+              
+              <Divider />
+              
+              <MenuItem onClick={() => {
+                handleProfileClose();
+                navigate('/profile');
+              }} sx={{ py: 1.2 }}>
+                <ListItemIcon>
+                  <PersonIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary="내 프로필" />
+              </MenuItem>
+              
+              <MenuItem onClick={() => {
+                if (toggleDarkMode) toggleDarkMode();
+                handleProfileClose();
+              }} sx={{ py: 1.2 }}>
+                <ListItemIcon>
+                  {darkMode ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
+                </ListItemIcon>
+                <ListItemText primary={darkMode ? "라이트 모드" : "다크 모드"} />
+              </MenuItem>
+              
+              <Divider />
+              
+              <MenuItem onClick={() => {
+                logout();
+                handleProfileClose();
+              }} sx={{ py: 1.2 }}>
+                <ListItemIcon>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M16 17L21 12L16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </ListItemIcon>
+                <ListItemText primary="로그아웃" />
+              </MenuItem>
+            </Box>
+          ) : (
+            <MenuItem onClick={() => {
+              handleProfileClose();
+              navigate('/login');
+            }} sx={{ py: 1.2 }}>
+              <ListItemIcon>
+                <PersonIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="로그인" />
+            </MenuItem>
+          )}
         </Menu>
       </Toolbar>
     </AppBar>

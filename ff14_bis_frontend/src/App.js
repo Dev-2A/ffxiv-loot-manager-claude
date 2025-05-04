@@ -1,6 +1,15 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import createFF14Theme from './theme';
+
+// 인증 관련
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
+import Profile from './pages/auth/Profile';
 
 // 레이아웃
 import UserLayout from './layouts/UserLayout';
@@ -27,36 +36,156 @@ import SeasonCreate from './pages/admin/SeasonCreate';
 // 공통 페이지
 import NotFound from './pages/NotFound';
 
-function App() {
+const App = () => {
+  const [darkMode, setDarkMode] = useState(false);
+
+  // 테마 토글 함수
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+  };
+
+  // 테마 생성
+  const theme = createFF14Theme(darkMode ? 'dark' : 'light');
+
   return (
-    <>
+    <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Router>
-        <Routes>
-          {/* 사용자 페이지 */}
-          <Route path="/" element={<UserLayout><Home /></UserLayout>} />
-          <Route path="/bis" element={<UserLayout><BisManager /></UserLayout>} />
-          <Route path="/raid" element={<UserLayout><RaidProgress /></UserLayout>} />
-          <Route path="/distribution" element={<UserLayout><Distribution /></UserLayout>} />
-          
-          {/* 관리자 페이지 */}
-          <Route path="/admin" element={<AdminLayout><Dashboard /></AdminLayout>} />
-          <Route path="/admin/players" element={<AdminLayout><PlayerManagement /></AdminLayout>} />
-          <Route path="/admin/players/new" element={<AdminLayout><PlayerCreate /></AdminLayout>} />
-          <Route path="/admin/players/:id" element={<AdminLayout><PlayerDetail /></AdminLayout>} />
-          <Route path="/admin/items" element={<AdminLayout><ItemManagement /></AdminLayout>} />
-          <Route path="/admin/items/new" element={<AdminLayout><ItemCreate /></AdminLayout>} />
-          <Route path="/admin/items/:id" element={<AdminLayout><ItemDetail /></AdminLayout>} />
-          <Route path="/admin/seasons" element={<AdminLayout><SeasonManagement /></AdminLayout>} />
-          <Route path="/admin/seasons/new" element={<AdminLayout><SeasonCreate /></AdminLayout>} />
-          <Route path="/admin/seasons/:id" element={<AdminLayout><SeasonDetail /></AdminLayout>} />
-          
-          {/* 404 페이지 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Router>
-    </>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            {/* 인증 페이지 */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            
+            {/* 사용자 페이지 */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                <UserLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
+                  <Home />
+                </UserLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <UserLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
+                  <Profile />
+                </UserLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/bis" element={
+              <ProtectedRoute>
+                <UserLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
+                  <BisManager />
+                </UserLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/raid" element={
+              <ProtectedRoute>
+                <UserLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
+                  <RaidProgress />
+                </UserLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/distribution" element={
+              <ProtectedRoute>
+                <UserLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
+                  <Distribution />
+                </UserLayout>
+              </ProtectedRoute>
+            } />
+
+            {/* 관리자 페이지 */}
+            <Route path="/admin" element={
+              <ProtectedRoute requireAdmin={true}>
+                <AdminLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
+                  <Dashboard />
+                </AdminLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/players" element={
+              <ProtectedRoute requireAdmin={true}>
+                <AdminLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
+                  <PlayerManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/players/new" element={
+              <ProtectedRoute requireAdmin={true}>
+                <AdminLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
+                  <PlayerCreate />
+                </AdminLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/players/:id" element={
+              <ProtectedRoute requireAdmin={true}>
+                <AdminLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
+                  <PlayerDetail />
+                </AdminLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/items" element={
+              <ProtectedRoute requireAdmin={true}>
+                <AdminLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
+                  <ItemManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/items/new" element={
+              <ProtectedRoute requireAdmin={true}>
+                <AdminLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
+                  <ItemCreate />
+                </AdminLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/items/:id" element={
+              <ProtectedRoute requireAdmin={true}>
+                <AdminLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
+                  <ItemDetail />
+                </AdminLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/seasons" element={
+              <ProtectedRoute requireAdmin={true}>
+                <AdminLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
+                  <SeasonManagement />
+                </AdminLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/seasons/new" element={
+              <ProtectedRoute requireAdmin={true}>
+                <AdminLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
+                  <SeasonCreate />
+                </AdminLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/seasons/:id" element={
+              <ProtectedRoute requireAdmin={true}>
+                <AdminLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
+                  <SeasonDetail />
+                </AdminLayout>
+              </ProtectedRoute>
+            } />
+            
+            {/* 404 페이지 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
-}
+};
 
 export default App;

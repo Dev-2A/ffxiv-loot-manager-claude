@@ -129,6 +129,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000", # React 개발 서버
 ]
 
+# CORS 쿠키 허용 (JWT 인증을 윟 필요)
+CORS_ALLOW_CREDENTIALS = True
+
 # REST Framework 설정
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [

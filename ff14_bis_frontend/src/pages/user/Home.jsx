@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
-	Box,
-	Typography,
-	Grid,
-	Card,
-	CardContent,
+	Box, 
+	Typography, 
+	Grid, 
+	Card, 
+	CardContent, 
 	Button,
 	Divider,
 	Paper,
@@ -26,11 +26,15 @@ import { getPlayers } from '../../api/playersApi';
 import { getBisSets } from '../../api/bisApi';
 import { getRaidProgresses } from '../../api/raidsApi';
 import { formatDate } from '../../utils/helpers';
-import Loading from '../../components/common/Loading';
-import ErrorMessage from '../../components/common/ErrorMessage';
-import SeasonSelector from '../../components/common/SeasonSelector';
+import { useAuth } from '../../contexts/AuthContext';
+import PageHeader from '../../components/common/PageHeader';
+import ApiStatus from '../../components/common/ApiStatus';
+import EnhancedCard from '../../components/common/EnhancedCard';
+import JobIcon from '../../components/common/JobIcon';
+import StatusBadge from '../../components/common/StatusBadge';
 
 const Home = () => {
+	const { currentUser } = useAuth();
 	const [selectedSeason, setSelectedSeason] = useState(null);
 
 	// 시즌 정보 가져오기
@@ -71,7 +75,7 @@ const Home = () => {
 		isLoading: isLoadingBisSets
 	} = useQuery({
 		queryKey: ['bisSets', selectedSeason],
-		queryFn: () => getBisSets({ sesason: selectedSeason }),
+		queryFn: () => getBisSets({ season: selectedSeason }),
 		enabled: !!selectedSeason
 	});
 
@@ -88,14 +92,21 @@ const Home = () => {
 		enabled: !!selectedSeason
 	});
 
-	// 로딩 상태 확인
+	// 로딩 및 에러 상태 확인
 	const isLoading = isLoadingSeasons || isLoadingPlayers || isLoadingBisSets || isLoadingRaidProgress;
-
-	// 에러 처리
-	if (seasonsError) return <ErrorMessage error={seasonsError} />
-	if (isLoading) return <Loading message='데이터 로딩 중...' />
-
+	
+	if (isLoading || seasonsError) {
+	  return (
+	    <ApiStatus 
+	      isLoading={isLoading}
+	      error={seasonsError}
+	      loadingMessage="데이터를 불러오는 중입니다..."
+	    />
+    );
+	}
+	
 	// 데이터 처리
+	const seasons = seasonsData?.results || [];
 	const players = playersData?.results || [];
 	const bisSets = bisSetsData?.results || [];
 	const raidProgresses = raidProgressData?.results || [];
@@ -104,161 +115,147 @@ const Home = () => {
 	const latestRaid = raidProgresses[0];
 	const playerCount = players.length;
 	const bisSetCount = bisSets.length;
+  const activeSeason = seasons.find(s => s.is_active);
 
 	return (
 		<Box>
-			<Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-				<Typography variant='h4' component="h1" gutterBottom>
-					FF14 비스 관리 시스템
-				</Typography>
-				<SeasonSelector
-					value={selectedSeason}
-					onChange={setSelectedSeason}
-				/>
-			</Box>
+			<PageHeader
+				title={`안녕하세요, ${currentUser?.username || '모험가'}님!`}
+				description="파이널 판타지 14 비스 관리 시스템에 오신 것을 환영합니다. 현재 장비 세트를 관리하고 레이드 진행 상황을 확인하세요."
+				action={
+				  <Button
+				    variant="contained"
+				    startIcon={<InventoryIcon />}
+				    component={Link}
+				    to="/bis"
+				  >
+				    비스 관리하기
+				  </Button>
+				}
+			/>
 
 			{/* 통계 카드 */}
 			<Grid container spacing={3} sx={{ mb: 4 }}>
 				<Grid item xs={12} sm={6} md={3}>
-					<Card>
-						<CardContent>
-							<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-								<Box>
-									<Typography color="text.secondary" gutterBottom>
-										등록된 플레이어
-									</Typography>
-									<Typography variant='h4' component="div">
-										{playerCount}명
-									</Typography>
-								</Box>
-								<Avatar sx={{ bgcolor: 'primary.main' }}>
-									<PeopleIcon />
-								</Avatar>
-							</Box>
+					<EnhancedCard
+						icon={<Avatar sx={{ bgcolor: 'primary.main' }}><PeopleIcon /></Avatar>}
+						title="등록된 플레이어"
+						subtitle={`${playerCount}명의 플레이어`}
+						footer={
 							<Button
 								component={Link}
 								to="/admin/players"
 								size="small"
-								sx={{ mt: 2 }}
+								fullWidth
 							>
 								플레이어 관리
 							</Button>
-						</CardContent>
-					</Card>
+						}
+					/>
 				</Grid>
 
 				<Grid item xs={12} sm={6} md={3}>
-					<Card>
-						<CardContent>
-							<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-								<Box>
-									<Typography color="text.secondary" gutterBottom>
-										비스 세트
-									</Typography>
-									<Typography variant='h4' component="div">
-										{bisSetCount}개
-									</Typography>
-								</Box>
-								<Avatar sx={{ bgcolor: 'secondary.main' }}>
-									<InventoryIcon />
-								</Avatar>
-							</Box>
+					<EnhancedCard
+						icon={<Avatar sx={{ bgcolor: 'secondary.main' }}><InventoryIcon /></Avatar>}
+						title="비스 세트"
+						subtitle={`${bisSetCount}개의 비스 세트`}
+						footer={
 							<Button
 								component={Link}
 								to="/bis"
 								size="small"
-								sx={{ mt: 2 }}
+								fullWidth
 							>
 								비스 관리
 							</Button>
-						</CardContent>
-					</Card>
+						}
+					/>
 				</Grid>
 
 				<Grid item xs={12} sm={6} md={3}>
-					<Card>
-						<CardContent>
-							<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-								<Box>
-									<Typography color="text.secondary" gutterBottom>
-										최근 레이드
-									</Typography>
-									<Typography variant="h4" component="div">
-										{latestRaid ? `${latestRaid.floor_display}` : '없음'}
-									</Typography>
-								</Box>
-								<Avatar sx={{ bgcolor: 'tank.main' }}>
-									<SportsEsportsIcon />
-								</Avatar>
-							</Box>
+					<EnhancedCard
+						icon={<Avatar sx={{ bgcolor: 'tank.main' }}><SportsEsportsIcon /></Avatar>}
+						title="최근 레이드"
+						subtitle={latestRaid ? `${latestRaid.floor_display} (${formatDate(latestRaid.raid_date)})` : '없음'}
+						footer={
 							<Button
 								component={Link}
 								to="/raid"
 								size="small"
-								sx={{ mt: 2 }}
+								fullWidth
 							>
 								레이드 관리
 							</Button>
-						</CardContent>
-					</Card>
+						}
+					/>
 				</Grid>
 
 				<Grid item xs={12} sm={6} md={3}>
-					<Card>
-						<CardContent>
-							<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-								<Box>
-									<Typography color='text.secondary' gutterBottom>
-										활성 시즌
-									</Typography>
-									<Typography variant='h5' component="div">
-										{seasonsData?.results?.find(s => s.is_active)?.name || '없음'}
-									</Typography>
-								</Box>
-								<Avatar sx={{ bgcolor: 'dps.main' }}>
-									<CalendarMonthIcon />
-								</Avatar>
-							</Box>
+					<EnhancedCard
+						icon={<Avatar sx={{ bgcolor: 'dps.main' }}><CalendarMonthIcon /></Avatar>}
+						title="활성 시즌"
+						subtitle={activeSeason ? activeSeason.name : '없음'}
+						action={activeSeason && <StatusBadge label="활성" color="success" size="small" />}
+						footer={
 							<Button
 								component={Link}
 								to="/admin/seasons"
 								size="small"
-								sx={{ mt: 2 }}
+								fullWidth
 							>
 								시즌 관리
 							</Button>
-						</CardContent>
-					</Card>
+						}
+					/>
 				</Grid>
 			</Grid>
 
 			{/* 상세 정보 */}
 			<Grid container spacing={3}>
 				<Grid item xs={12} md={6}>
-					<Paper sx={{ p: 2 }}>
-						<Typography variant='h6' gutterBottom>
-							최근 레이드 진행
-						</Typography>
-						<Divider sx={{ mb: 2 }} />
-
+					<EnhancedCard
+						title="최근 레이드 진행"
+						headerBg="primary.main"
+						headerColor="white"
+						elevation={3}
+					>
 						{raidProgresses.length > 0 ? (
 							<List>
 								{raidProgresses.slice(0, 5).map((raid) => (
-									<ListItem key={raid.id}>
+									<ListItem key={raid.id} sx={{ borderBottom: '1px solid', borderColor: 'divider', py: 1.5 }}>
 										<ListItemAvatar>
-											<Avatar>
+											<Avatar sx={{ bgcolor: 'primary.light' }}>
 												<SportsEsportsIcon />
 											</Avatar>
 										</ListItemAvatar>
 										<ListItemText
-											primary={`${raid.floor_display} (${formatDate(raid.raid_date)})`}
-											secondary={raid.notes || '메모 없음'}
+											primary={
+												<Typography variant="subtitle1" fontWeight="medium">
+													{raid.floor_display}
+												</Typography>
+											}
+											secondary={
+												<>
+													<Typography variant="body2" component="span">
+														{formatDate(raid.raid_date)}
+													</Typography>
+													{raid.notes && (
+														<Typography 
+															variant="body2" 
+															color="text.secondary" 
+															sx={{ display: 'block', mt: 0.5 }}
+														>
+															{raid.notes}
+														</Typography>
+													)}
+												</>
+											}
 										/>
 									</ListItem>
 								))}
 							</List>
 						) : (
-							<Typography variant="body2" color="text.secondary">
+							<Typography variant="body2" color="text.secondary" align="center" sx={{ py: 3 }}>
 								레이드 진행 기록이 없습니다.
 							</Typography>
 						)}
@@ -272,34 +269,40 @@ const Home = () => {
 						>
 							모든 레이드 보기
 						</Button>
-					</Paper>
+					</EnhancedCard>
 				</Grid>
 
 				<Grid item xs={12} md={6}>
-					<Paper sx={{ p: 2 }}>
-						<Typography variant='h6' gutterBottom>
-							등록된 플레이어
-						</Typography>
-						<Divider sx={{ mb: 2 }} />
-
+					<EnhancedCard
+						title="등록된 플레이어"
+						headerBg="secondary.main"
+						headerColor="white"
+						elevation={3}
+					>
 						{players.length > 0 ? (
 							<List>
 								{players.slice(0, 5).map((player) => (
-									<ListItem key={player.id}>
+									<ListItem key={player.id} sx={{ borderBottom: '1px solid', borderColor: 'divider', py: 1.5 }}>
 										<ListItemAvatar>
-											<Avatar>
-												<PersonIcon />
-											</Avatar>
+											<JobIcon job={player.job} size={40} />
 										</ListItemAvatar>
 										<ListItemText
-											primary={player.nickname}
-											secondary={`${player.job_display} (${player.job_type_display})`}
+											primary={
+												<Typography variant="subtitle1" fontWeight="medium">
+													{player.nickname}
+												</Typography>
+											}
+											secondary={
+												<Typography variant="body2" color="text.secondary">
+													{player.job_display} ({player.job_type_display})
+												</Typography>
+											}
 										/>
 									</ListItem>
 								))}
 							</List>
 						) : (
-							<Typography variant='body2' color='text.secondary'>
+							<Typography variant='body2' color='text.secondary' align="center" sx={{ py: 3 }}>
 								등록된 플레이어가 없습니다.
 							</Typography>
 						)}
@@ -313,7 +316,7 @@ const Home = () => {
 						>
 							모든 플레이어 보기
 						</Button>
-					</Paper>
+					</EnhancedCard>
 				</Grid>
 			</Grid>
 		</Box>

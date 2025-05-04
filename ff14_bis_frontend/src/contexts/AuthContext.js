@@ -1,5 +1,6 @@
+// ff14_bis_frontend/src/contexts/AuthContext.js
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { getCurrentUser, logout, refreshToken } from '../api/authApi';
+import { getCurrentUser, refreshToken } from '../api/authApi';
 
 // 인증 컨텍스트 생성
 const AuthContext = createContext(null);
@@ -13,25 +14,25 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       const token = localStorage.getItem('accessToken');
-
+      
       if (token) {
         try {
           // 현재 사용자 정보 가져오기
           const userData = await getCurrentUser();
           setCurrentUser(userData);
-
+          
           // 관리자 여부 확인
           setIsAdmin(userData.user_type === 'admin' || userData.is_staff);
         } catch (error) {
           // 토큰이 만료되었거나 유효하지 않은 경우
           const refreshTokenValue = localStorage.getItem('refreshToken');
-
+          
           if (refreshTokenValue) {
             try {
               // 토큰 갱신 시도
               const response = await refreshToken(refreshTokenValue);
               localStorage.setItem('accessToken', response.access);
-
+              
               // 갱신 후 사용자 정보 다시 가져오기
               const userData = await getCurrentUser();
               setCurrentUser(userData);
@@ -46,10 +47,10 @@ export const AuthProvider = ({ children }) => {
           }
         }
       }
-
+      
       setIsLoading(false);
     };
-
+    
     checkAuth();
   }, []);
 
