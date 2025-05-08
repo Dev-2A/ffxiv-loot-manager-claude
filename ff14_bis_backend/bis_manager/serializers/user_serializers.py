@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.conf import settings
 
 User = get_user_model()
 
@@ -17,7 +18,8 @@ class UserSerializer(serializers.ModelSerializer):
             request = self.context.get('request')
             if request is not None:
                 return request.build_absolute_uri(obj.profile_image.url)
-            return obj.profile_image.url
+            # 절대 경로로 변환
+            return f"{settings.MEDIA_URL}{obj.profile_image}"
         return obj.profile_image_url
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -50,7 +52,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['emamil', 'profile_image', 'profile_image_url']
+        fields = ['email', 'profile_image', 'profile_image_url']
     
     def update(self, instance, validated_data):
         # 이메일 업데이트

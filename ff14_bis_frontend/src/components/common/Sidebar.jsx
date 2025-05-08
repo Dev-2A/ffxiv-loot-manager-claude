@@ -59,6 +59,7 @@ const Sidebar = ({ open, onClose, variant = 'permanent', isAdmin = false, darkMo
           boxSizing: 'border-box',
           boxShadow: '0 0 20px rgba(0, 0, 0, 0.05)',
           borderRight: `1px solid ${theme.palette.divider}`,
+          zIndex: 900,
         },
       }}
     >

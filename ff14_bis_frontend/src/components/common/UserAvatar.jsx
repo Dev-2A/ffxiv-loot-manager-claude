@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Avatar, Badge, Tooltip } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
@@ -35,14 +35,35 @@ const UserAvartar = ({
   tooltip = true,
   sx = {}
 }) => {
+  const [imageError, setImageError] = useState(false);
   const isAdmin = user?.user_type === 'admin' || user?.is_staff;
-  const username = user?.username || 'User';
-  const profileImage = user?.profile_image_url || user?.profile_image;
+  const username = user?.nsername || 'User';
+
+  // URL 처리 로직 개선
+  let profileImage = null;
+
+  if (user?.profile_image_url && !imageError) {
+    profileImage = user.profile_image_url;
+  } else if (user?.profile_image && typeof user.profile_image === 'string' && !imageError) {
+    // 경로가 완전하지 않으면 앞에 /media/ 추가
+    profileImage = user.profile_image.startsWith('http')
+      ? user.profile_image
+      : (user.profile_image.startsWith('/')
+          ? user.profile_image
+          : `/media/${user.profile_image}`);
+  }
+
+  // 이미지 로드 오류 처리
+  const handleImageError = () => {
+    console.log('이미지 로드 실패:', profileImage);
+    setImageError(true);
+  };
 
   const avatarComponent = (
     <Avatar
       alt={username}
       src={profileImage}
+      onError={handleImageError}
       sx={{
         width: size,
         height: size,
@@ -50,7 +71,7 @@ const UserAvartar = ({
         ...sx
       }}
     >
-      {!profileImage && username.charAt(0).toUpperCase()}
+      {(!profileImage || imageError) && username.charAt(0).toUpperCase()}
     </Avatar>
   );
 

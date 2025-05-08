@@ -26,11 +26,16 @@ const Login = () => {
   // 로그인 mutation
   const { mutate, isLoading } = useMutation({
     mutationFn: loginApi,
-    onSuccess: (data) => {
-      // 인증 정보 저장 및 상태 업데이트
-      login(data.access, data.refresh, { username: credentials.username });
-      // 홈으로 리다이렉트
-      navigate('/');
+    onSuccess: async (data) => {
+      try {
+        // 인증 정보 저장 및 상태 업데이트
+        await login(data.access, data.refresh, { username: credentials.username });
+        // 홈으로 리다이렉트
+        navigate('/');
+      } catch (error) {
+        console.error('로그인 후 처리 중 오류:', error);
+        setError('로그인 후 사용자 정보 처리 중 오류가 발생했습니다.');
+      }
     },
     onError: (error) => {
       if (error.response && error.response.status === 401) {

@@ -54,11 +54,21 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // 로그인 처리
-  const login = (accessToken, refreshTokenValue, user) => {
+  const login = async (accessToken, refreshTokenValue, user) => {
     localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('refreshToken', refreshTokenValue);
-    setCurrentUser(user);
-    setIsAdmin(user.user_type === 'admin' || user.is_staff);
+    
+    // 로그인 후 전체 사용자 정보 가져오기
+    try {
+      const userData = await getCurrentUser();
+      setCurrentUser(userData);
+      setIsAdmin(userData.user_type === 'admin' || userData.is_staff);
+    } catch (error) {
+      console.error('사용자 정보 가져오기 실패:', error);
+      // 기본 정보라도 설정
+      setCurrentUser(user);
+      setIsAdmin(user.user_type === 'admin' || user.is_staff);
+    }
   };
 
   // 로그아웃 처리

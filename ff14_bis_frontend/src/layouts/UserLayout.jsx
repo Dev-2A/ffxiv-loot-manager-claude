@@ -35,6 +35,7 @@ const UserLayout = ({ children, darkMode, toggleDarkMode }) => {
           open={true} 
           isAdmin={false}
           darkMode={darkMode}
+          sx={{ zIndex: 1000 }}
         />
       )}
 
