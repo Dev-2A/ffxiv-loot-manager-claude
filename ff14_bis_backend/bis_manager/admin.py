@@ -1,8 +1,15 @@
 from django.contrib import admin
 from .models import (
     Season, Item, Player, BisSet, BisItem, Materia,
-    RaidProgress, ItemAcquisition, DistributionPriority, ResourceTracking
+    RaidProgress, ItemAcquisition, DistributionPriority, ResourceTracking,
+    CustomUser, Schedule
 )
+
+@admin.register(CustomUser)
+class CustomUserAdmin(admin.ModelAdmin):
+    list_display = ('username', 'email', 'user_type', 'is_staff', 'is_active')
+    list_filter = ('user_type', 'is_staff', 'is_active')
+    search_fields = ['username', 'email']
 
 @admin.register(Season)
 class SeasonAdmin(admin.ModelAdmin):
@@ -21,7 +28,13 @@ class PalyerAdmin(admin.ModelAdmin):
     list_display = ('nickname', 'job', 'job_type')
     list_filter = ('job', 'job_type')
     search_fields = ['nickname']
-    
+
+@admin.register(Schedule)
+class ScheduleAdmin(admin.ModelAdmin):
+    list_display = ('title', 'start_time', 'end_time', 'creator', 'is_admin_schedule', 'repeat_type')
+    list_filter = ('is_admin_schedule', 'repeat_type', 'creator')
+    search_fields = ['title', 'description']
+
 class MateriaInline(admin.TabularInline):
     model = Materia
     extra = 0

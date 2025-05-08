@@ -33,6 +33,7 @@ const Sidebar = ({ open, onClose, variant = 'permanent', isAdmin = false, darkMo
     { text: '비스 관리', icon: <InventoryIcon />, path: '/bis' },
     { text: '레이드 진행', icon: <SportsEsportsIcon />, path: '/raid' },
     { text: '아이템 분배', icon: <PeopleIcon />, path: '/distribution' },
+    { text: '레이드 일정', icon: <CalendarMonthIcon />, path: '/schedule' },
   ];
 
   const adminMenu = [

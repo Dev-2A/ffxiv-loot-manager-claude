@@ -5,9 +5,20 @@ from django.contrib.auth.password_validation import validate_password
 User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
+    profile_image_url = serializers.SerializerMethodField()
+    
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'user_type']
+        fields = ['id', 'username', 'email', 'user_type', 'profile_image', 'profile_image_url']
+    
+    def get_profile_image_url(self, obj):
+        """프로필 이미지 URL 반환"""
+        if obj.profile_image:
+            request = self.context.get('request')
+            if request is not None:
+                return request.build_absolute_uri(obj.profile_image.url)
+            return obj.profile_image.url
+        return obj.profile_image_url
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
@@ -29,5 +40,34 @@ class RegisterSerializer(serializers.ModelSerializer):
             user_type=validated_data['user_type']
         )
         user.set_password(validated_data['password'])
+        
+        # 랜덤 프로필 이미지 할당
+        user.assign_random_profile_image()
+        
         user.save()
         return user
+
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['emamil', 'profile_image', 'profile_image_url']
+    
+    def update(self, instance, validated_data):
+        # 이메일 업데이트
+        if 'email' in validated_data:
+            instance.email = validated_data['email']
+        
+        # 프로필 이미지 업데이트 (파일 업로드)
+        if 'profile_image' in validated_data:
+            # 이미지가 있으면 기존 URL은 제거
+            instance.profile_image = validated_data['profile_image']
+            instance.profile_image_url = None
+        
+        # 프로필 이미지 URL 업데이트
+        if 'profile_image_url' in validated_data:
+            # URL이 있으면 기존 이미지는 제거
+            instance.profile_image_url = validated_data['profile_image_url']
+            instance.profile_image = None
+        
+        instance.save()
+        return instance

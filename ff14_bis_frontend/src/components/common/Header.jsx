@@ -10,7 +10,6 @@ import {
   Menu,
   MenuItem,
   useMediaQuery,
-  Avatar,
   Badge,
   Tooltip,
   Divider,
@@ -30,6 +29,7 @@ import LightModeIcon from '@mui/icons-material/LightMode';
 import PersonIcon from '@mui/icons-material/Person';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import UserAvatar from './UserAvatar';
 
 const Header = ({ toggleSidebar, darkMode, toggleDarkMode }) => {
   const { currentUser, isAdmin, logout } = useAuth();
@@ -233,10 +233,10 @@ const Header = ({ toggleSidebar, darkMode, toggleDarkMode }) => {
                   }
                 }}
               >
-                <Avatar 
-                  alt="사용자" 
-                  src="/images/avatar.png"
-                  sx={{ width: 32, height: 32 }}
+                <UserAvatar
+                  user={currentUser}
+                  size={32}
+                  showAdminBadge={false}
                 />
               </IconButton>
             </Tooltip>
@@ -529,16 +529,16 @@ const Header = ({ toggleSidebar, darkMode, toggleDarkMode }) => {
           {currentUser ? (
             <Box>
               <Box sx={{ p: 2, textAlign: 'center' }}>
-                <Avatar 
-                  alt={currentUser.username} 
-                  src="/images/avatar.png"
-                  sx={{ width: 60, height: 60, mx: 'auto', mb: 1, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}
+                <UserAvatar 
+                  user={currentUser}
+                  size={60}
+                  sx={{ mx: 'auto', mb: 1, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}
                 />
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                   {currentUser.username}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  {isAdmin ? '관리자' : '일반 회원'}
+                  {isAdmin ? '공대장' : '공대원'}
                 </Typography>
               </Box>
               

@@ -5,7 +5,7 @@ from bis_manager.views import (
     SeasonViewSet, ItemViewSet, PlayerViewSet,
     BisSetViewSet, BisItemViewSet,
     RaidProgressViewSet, ItemAcquisitionViewSet, DistributionPriorityViewSet,
-    ResourceTrackingViewSet
+    ResourceTrackingViewSet, ScheduleViewSet
 )
 
 # API 라우터 설정
@@ -19,6 +19,7 @@ router.register(r'raid-progress', RaidProgressViewSet)
 router.register(r'item-acquisitions', ItemAcquisitionViewSet)
 router.register(r'distribution-priorities', DistributionPriorityViewSet)
 router.register(r'resources', ResourceTrackingViewSet)
+router.register(r'schedules', ScheduleViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

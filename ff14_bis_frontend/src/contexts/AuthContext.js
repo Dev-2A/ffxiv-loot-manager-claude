@@ -1,4 +1,3 @@
-// ff14_bis_frontend/src/contexts/AuthContext.js
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { getCurrentUser, refreshToken } from '../api/authApi';
 
@@ -72,6 +71,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     currentUser,
+    setCurrentUser, // setCurrentUser 추가
     isAdmin,
     isLoading,
     login,

@@ -29,3 +29,31 @@ export const refreshToken = async (refreshToken) => {
   const response = await api.post('/auth/login/refresh/', { refresh: refreshToken });
   return response.data;
 };
+
+// 프로필 업데이트
+export const updateProfile = async (profileData) => {
+  // FormData 객체 생성
+  const formData = new FormData();
+
+  // 일반 필드 추가
+  if(profileData.email) {
+    formData.append('email', profileData.email);
+  }
+
+  // 프로필 이미지 파일 추가
+  if(profileData.profile_image && profileData.profile_image instanceof File) {
+    formData.append('profile_image', profileData.profile_image);
+  }
+
+  // 프로필 이미지 URL 추가
+  if(profileData.profile_image_url) {
+    formData.append('profile_image_url', profileData.profile_image_url);
+  }
+
+  const response = await api.patch('/auth/user/update-profile/', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
+  return response.data;
+};

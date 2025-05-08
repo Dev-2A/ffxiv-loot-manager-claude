@@ -20,6 +20,7 @@ import Home from './pages/user/Home';
 import BisManager from './pages/user/BisManager';
 import RaidProgress from './pages/user/RaidProgress';
 import Distribution from './pages/user/Distribution';
+import Schedule from './pages/user/Schedule';
 
 // 관리자 페이지
 import Dashboard from './pages/admin/Dashboard';
@@ -94,6 +95,14 @@ const App = () => {
               <ProtectedRoute>
                 <UserLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
                   <Distribution />
+                </UserLayout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/schedule" element={
+              <ProtectedRoute>
+                <UserLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
+                  <Schedule />
                 </UserLayout>
               </ProtectedRoute>
             } />

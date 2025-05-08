@@ -1,11 +1,13 @@
-from rest_framework import status, generics
+from rest_framework import status, generics, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.contrib.auth import get_user_model
+from rest_framework.decorators import action
 
-from bis_manager.serializers import UserSerializer, RegisterSerializer
+from bis_manager.serializers import UserSerializer, RegisterSerializer, UserProfileUpdateSerializer
 
 User = get_user_model()
 
@@ -18,6 +20,14 @@ class UserDetailView(generics.RetrieveAPIView):
     queryset = User.objects.all()
     permission_classes = (IsAuthenticated,)
     serializer_class = UserSerializer
+    
+    def get_object(self):
+        return self.request.user
+
+class UserProfileUpdateView(generics.UpdateAPIView):
+    permission_classes = (IsAuthenticated,)
+    serializer_class = UserProfileUpdateSerializer
+    parser_classes = (MultiPartParser, FormParser)
     
     def get_object(self):
         return self.request.user

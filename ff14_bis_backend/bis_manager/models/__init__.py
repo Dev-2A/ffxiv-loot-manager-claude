@@ -5,3 +5,4 @@ from .player import Player
 from .bis import BisSet, BisItem, Materia
 from .raid import RaidProgress, ItemAcquisition, DistributionPriority
 from .resource import ResourceTracking
+from .schedule import Schedule

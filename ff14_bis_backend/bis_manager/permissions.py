@@ -17,3 +17,19 @@ class IsAdminUser(permissions.BasePermission):
     """
     def has_permission(self, request, view):
         return request.user and (request.user.is_staff or request.user.user_type == 'admin')
+
+class IsOwnerOrReadOnly(permissions.BasePermission):
+    """
+    객체의 소유자만 쓰기 권한을 가짐
+    """
+    def has_object_permission(self, request, view, obj):
+        # 읽기 권한은 모든 요청에 허용
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        
+        # 관리자는 항상 모든 권한 가짐
+        if request.user.is_staff or request.user.user_type == 'admin':
+            return True
+        
+        # 작성자만 객체 수정 가능
+        return obj.creator == request.user
