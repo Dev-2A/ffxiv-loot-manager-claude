@@ -21,7 +21,7 @@ class BisSetViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     @transaction.atomic
     def add_item(self, request, pk=None):
-        """비스 세트에 아이템 추가 - 다른 비스 세트와 격리"""
+        """비스 세트에 아이템 추가 - 각 비스 세트는 독립적으로 처리"""
         bis_set = self.get_object()
         logger.info(f"add_item 호출: BisSet ID={pk}, bis_type={bis_set.bis_type}")
         
@@ -37,30 +37,37 @@ class BisSetViewSet(viewsets.ModelViewSet):
         except Item.DoesNotExist:
             return Response({'error': '존재하지 않는 아이템입니다.'}, status=status.HTTP_400_BAD_REQUEST)
         
+        created = False
         # 트랜잭션 내에서 해당 아이템만 업데이트하고, 코드 실행 중 다른 작업을 차단
         with transaction.atomic():
             try:
                 # 기존 아이템이 있는지 확인 - 명시적으로 현재 비스 세트만 대상으로 함
-                existing_item = BisItem.objects.select_for_update().get(
+                existing_item = BisItem.objects.select_for_update().filter(
                     bis_set_id=bis_set.id,  # 명시적으로 bis_set_id를 지정
                     slot=slot
-                )
-                # 아이템 업데이트 - 특정 필드만 변경
-                existing_item.item = item
-                # 수정된 필드만 저장
-                existing_item.save(update_fields=['item'])
-                logger.info(f"기존 아이템 업데이트: BisItem ID={existing_item.id}, Item ID={item.id}")
-                created = False
-            except BisItem.DoesNotExist:
-                # 새 아이템 생성 - 명시적으로 현재 비스 세트에만 추가
-                bis_item = BisItem(
-                    bis_set_id=bis_set.id,  # 명시적으로 bis_set_id를 지정
-                    item=item,
-                    slot=slot
-                )
-                bis_item.save()
-                logger.info(f"새 아이템 생성: BisSet ID={bis_set.id}, Item ID={item.id}")
-                created = True
+                ).first()
+                
+                if existing_item:
+                    # 아이템 업데이트 - 특정 필드만 변경
+                    existing_item.item = item
+                    # 수정된 필드만 저장
+                    existing_item.save(update_fields=['item'])
+                    logger.info(f"기존 아이템 업데이트: BisItem ID={existing_item.id}, Item ID={item.id}")
+                    created = False
+                else:
+                    # 새 아이템 생성 - 명시적으로 현재 비스 세트에만 추가
+                    bis_item = BisItem(
+                        bis_set_id=bis_set.id,  # 명시적으로 bis_set_id를 지정
+                        item=item,
+                        slot=slot
+                    )
+                    bis_item.save()
+                    logger.info(f"새 아이템 생성: BisSet ID={bis_set.id}, Item ID={item.id}")
+                    created = True
+            except Exception as e:
+                logger.error(f"아이템 추가 중 오류 발생: {str(e)}")
+                return Response({'error': f'아이템 추가 중 오류가 발생했습니다: {str(e)}'}, 
+                               status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         # BisSet 객체 갱신하여 프론트엔드가 최신 정보를 받도록 함
         bis_set.refresh_from_db()
@@ -96,6 +103,7 @@ class BisItemViewSet(viewsets.ModelViewSet):
             return Response({'error': f'이 아이템에는 최대 {max_slots}개의 마테리쟈만 장착할 수 있습니다.'}, status=status.HTTP_400_BAD_REQUEST)
         
         # 기존 마테리쟈 체크
+        created = False
         try:
             existing_materia = Materia.objects.get(bis_item=bis_item, slot_number=slot_number)
             existing_materia.type = materia_type
@@ -103,6 +111,10 @@ class BisItemViewSet(viewsets.ModelViewSet):
         except Materia.DoesNotExist:
             Materia.objects.create(bis_item=bis_item, type=materia_type, slot_number=slot_number)
             created = True
+        except Exception as e:
+            logger.error(f"마테리쟈 추가 중 오류 발생: {str(e)}")
+            return Response({'error': f'마테리쟈 추가 중 오류가 발생했습니다: {str(e)}'}, 
+                           status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         return Response({
             'status': '마테리쟈가 추가되었습니다.',

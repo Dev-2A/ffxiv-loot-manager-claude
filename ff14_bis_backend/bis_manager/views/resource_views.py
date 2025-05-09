@@ -8,6 +8,9 @@ from bis_manager.serializers import ResourceTrackingSerializer
 from bis_manager.permissions import IsAdminOrReadOnly
 from bis_manager.services.resource_calculation_service import ResourceCalculationService
 
+import logging
+logger = logging.getLogger(__name__)
+
 class ResourceTrackingViewSet(viewsets.ModelViewSet):
     queryset = ResourceTracking.objects.all()
     serializer_class = ResourceTrackingSerializer
@@ -21,6 +24,8 @@ class ResourceTrackingViewSet(viewsets.ModelViewSet):
         player_id = request.data.get('player')
         season_id = request.data.get('season')
         
+        logger.info(f"calculate_needs 호출: player_id={player_id}, season_id={season_id}")
+        
         if not player_id or not season_id:
             return Response({'error': '플레이어 ID와 시즌 ID를 모두 입력해주세요.'}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -31,21 +36,27 @@ class ResourceTrackingViewSet(viewsets.ModelViewSet):
             return Response({'error': '존재하지 않는 플레이어 또는 시즌입니다.'}, status=status.HTTP_404_NOT_FOUND)
         
         # 재화 계산 서비스 호출
-        resources = ResourceCalculationService.calculate_resources_for_player(player, season)
-        
-        if not resources:
-            return Response({'error': '이 플레이어의 최종 비스 세트가 존재하지 않습니다.'},status=status.HTTP_404_NOT_FOUND)
-        
-        # 계산 결과 반환
-        return Response({
-            'success': True,
-            'player': {
-                'id': player.id,
-                'nickname': player.nickname
-            },
-            'season': {
-                'id': season.id,
-                'name': season.name
-            },
-            'resources': resources
-        })
+        try:
+            resources = ResourceCalculationService.calculate_resources_for_player(player, season)
+            
+            if not resources:
+                return Response({'error': '이 플레이어의 최종 비스 세트가 존재하지 않습니다.'},
+                               status=status.HTTP_404_NOT_FOUND)
+            
+            # 계산 결과 반환
+            return Response({
+                'success': True,
+                'player': {
+                    'id': player.id,
+                    'nickname': player.nickname
+                },
+                'season': {
+                    'id': season.id,
+                    'name': season.name
+                },
+                'resources': resources
+            })
+        except Exception as e:
+            logger.error(f"자원 계산 중 오류 발생: {str(e)}", exc_info=True)
+            return Response({'error': f'자원 계산 중 오류가 발생했습니다: {str(e)}'},
+                           status=status.HTTP_500_INTERNAL_SERVER_ERROR)
