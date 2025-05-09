@@ -2,10 +2,14 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db import transaction
 
 from bis_manager.models import BisSet, BisItem, Materia, Item
 from bis_manager.serializers import BisSetSerializer, BisItemSerializer, MateriaSerializer
 from bis_manager.permissions import IsAdminOrReadOnly
+
+import logging
+logger = logging.getLogger(__name__)
 
 class BisSetViewSet(viewsets.ModelViewSet):
     queryset = BisSet.objects.all()
@@ -15,9 +19,11 @@ class BisSetViewSet(viewsets.ModelViewSet):
     filterset_fields = ['player', 'season', 'bis_type']
     
     @action(detail=True, methods=['post'])
+    @transaction.atomic
     def add_item(self, request, pk=None):
-        """비스 세트에 아이템 추가"""
+        """비스 세트에 아이템 추가 - 다른 비스 세트와 격리"""
         bis_set = self.get_object()
+        logger.info(f"add_item 호출: BisSet ID={pk}, bis_type={bis_set.bis_type}")
         
         # 요청 데이터 검증
         item_id = request.data.get('item_id')
@@ -29,17 +35,35 @@ class BisSetViewSet(viewsets.ModelViewSet):
         try:
             item = Item.objects.get(pk=item_id)
         except Item.DoesNotExist:
-            return Response({'error': '존재하지 않는 아이템입니다.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': '존재하지 않는 아이템입니다.'}, status=status.HTTP_400_BAD_REQUEST)
         
-        # 기존 슬롯 아이템 체크
-        try:
-            existing_item = BisItem.objects.get(bis_set=bis_set, slot=slot)
-            existing_item.item = item
-            existing_item.save()
-            created = False
-        except BisItem.DoesNotExist:
-            bis_item = BisItem.objects.create(bis_set=bis_set, item=item, slot=slot)
-            created = True
+        # 트랜잭션 내에서 해당 아이템만 업데이트하고, 코드 실행 중 다른 작업을 차단
+        with transaction.atomic():
+            try:
+                # 기존 아이템이 있는지 확인 - 명시적으로 현재 비스 세트만 대상으로 함
+                existing_item = BisItem.objects.select_for_update().get(
+                    bis_set_id=bis_set.id,  # 명시적으로 bis_set_id를 지정
+                    slot=slot
+                )
+                # 아이템 업데이트 - 특정 필드만 변경
+                existing_item.item = item
+                # 수정된 필드만 저장
+                existing_item.save(update_fields=['item'])
+                logger.info(f"기존 아이템 업데이트: BisItem ID={existing_item.id}, Item ID={item.id}")
+                created = False
+            except BisItem.DoesNotExist:
+                # 새 아이템 생성 - 명시적으로 현재 비스 세트에만 추가
+                bis_item = BisItem(
+                    bis_set_id=bis_set.id,  # 명시적으로 bis_set_id를 지정
+                    item=item,
+                    slot=slot
+                )
+                bis_item.save()
+                logger.info(f"새 아이템 생성: BisSet ID={bis_set.id}, Item ID={item.id}")
+                created = True
+        
+        # BisSet 객체 갱신하여 프론트엔드가 최신 정보를 받도록 함
+        bis_set.refresh_from_db()
         
         return Response({
             'status': '아이템이 추가되었습니다.',

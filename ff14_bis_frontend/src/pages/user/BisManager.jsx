@@ -127,11 +127,21 @@ const BisManager = () => {
     }
   });
 
-  // 비스 세트에 아이템 추가 mutation
   const addItemToBisSetMutation = useMutation({
-    mutationFn: ({ bisSetId, itemId, slot }) => addItemToBisSet(bisSetId, { item_id: itemId, slot }),
-    onSuccess: () => {
-      queryClient.invalidateQueries('bisSet', selectedBisSet);
+    mutationFn: ({ bisSetId, itemId, slot }) => {
+      console.log(`아이템 추가 요청: bisSetId=${bisSetId}, itemId=${itemId}, slot=${slot}`);
+      return addItemToBisSet(bisSetId, { item_id: itemId, slot });
+    },
+    onSuccess: (data, variables) => {
+      console.log(`아이템 추가 성공: ${JSON.stringify(data)}, variables: ${JSON.stringify(variables)}`);
+      
+      // 중요: 특정 비스 세트만 무효화하여 다시 로드
+      // 쿼리 키에 정확한 비스 세트 ID를 포함시켜 특정 비스 세트만 갱신
+      queryClient.invalidateQueries(['bisSet', selectedBisSet]);
+      
+      // 전체 비스 세트 목록은 무효화하지 않음 (이것이 문제의 원인일 수 있음)
+      // queryClient.invalidateQueries(['bisSets']); // 이 줄 주석 처리
+      
       handleCloseDialog();
     }
   });
@@ -195,6 +205,11 @@ const BisManager = () => {
     if (!selectedPlayer || !selectedSeason) {
       alert('플레이어와 시즌을 선택해주세요.');
       return;
+    }
+
+    // 최종 비스 세트가 존재하는지 확인
+    if (!finalBisSet) {
+      alert('최종 비스 세트가 없습니다. 먼저 최종 비스 세트를 생성해주세요.');
     }
 
     calculateREsourcesMutation.mutate({

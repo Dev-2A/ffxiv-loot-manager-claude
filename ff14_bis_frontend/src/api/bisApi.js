@@ -32,8 +32,15 @@ export const deleteBisSet = async (id) => {
 
 // 비스 세트에 아이템 추가
 export const addItemToBisSet = async (bisSetId, itemData) => {
-    const response = await api.post(`/bis-sets/${bisSetId}/add_item/`, itemData);
-    return response.data;
+    console.log(`addItemToBisSet 호출: bisSetId=${bisSetId}, itemData=`, itemData);
+    try {
+        const response = await api.post(`/bis-sets/${bisSetId}/add_item/`, itemData);
+        console.log('addItemToBisSet 응답:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('addItemToBisSet 오류:', error);
+        throw error;
+    }
 };
 
 // 비스 아이템 목록 가져오기

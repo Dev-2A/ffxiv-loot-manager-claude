@@ -102,7 +102,8 @@ const Header = ({ toggleSidebar, darkMode, toggleDarkMode }) => {
       sx={{
         backdropFilter: 'blur(8px)',
         backgroundColor: alpha(theme.palette.background.default, 0.9),
-        borderBottom: `1px solid ${theme.palette.divider}`
+        borderBottom: `1px solid ${theme.palette.divider}`,
+        zIndex: 1200
       }}
     >
       <Toolbar sx={{ height: 64 }}>

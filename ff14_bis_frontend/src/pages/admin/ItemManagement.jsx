@@ -71,7 +71,8 @@ const ItemManagement = () => {
 			season: selectedSeason || undefined,
 			source: selectedSource || undefined,
 			type: selectedType || undefined
-		})
+		}),
+		keepPreviousData: true
 	});
 
 	// 아이템 삭제 mutation

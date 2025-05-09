@@ -50,9 +50,9 @@ const UserLayout = ({ children, darkMode, toggleDarkMode }) => {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
           }),
+          marginTop: '64px',
         }}
       >
-        <Toolbar /> {/* 공간 확보를 위한 도구 모음 */}
         {children}
       </Box>
     </Box>

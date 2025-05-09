@@ -11,6 +11,12 @@ class ResourceCalculationService:
             # 최종 비스 세트 가져오기
             final_bis = BisSet.objects.get(player=player, season=season, bis_type='최종')
             
+            # 출발 비스 세트 가져오기 (있을 경우)
+            try:
+                start_bis = BisSet.objects.get(player=player, season=season, bis_type='출발')
+            except BisSet.DoesNotExist:
+                start_bis = None
+            
             # 필요한 재화 초기화
             resources = {
                 '석판': 0,
@@ -23,10 +29,22 @@ class ResourceCalculationService:
                 '무기석판': 0,
             }
             
-            # 각 슬롯별 아이템 확인
-            bis_items = BisItem.objects.filter(bis_set=final_bis)
+            #최종 비스에 있는 아이템 확인
+            final_bis_items = BisItem.objects.filter(bis_set=final_bis)
             
-            for bis_item in bis_items:
+            # 출발 비스에 있는 아이템 슬롯별로 추출 (있을 경우)
+            start_bis_slots = {}
+            if start_bis:
+                for item in BisItem.objects.filter(bis_set=start_bis):
+                    start_bis_slots[item.slot] = item.item
+            
+            for bis_item in final_bis_items:
+                # 출발 비스에 같은 아이템이 있다면 건너뛰기
+                if start_bis and bis_item.slot in start_bis_slots:
+                    start_item = start_bis_slots[bis_item.slot]
+                    if start_item.id == bis_item.item.id:
+                        continue
+                
                 item = bis_item.item
                 item_type = bis_item.slot
                 
