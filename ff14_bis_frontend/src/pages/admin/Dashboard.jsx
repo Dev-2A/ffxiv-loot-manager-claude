@@ -20,6 +20,7 @@ import { Link } from 'react-router-dom';
 import { getSeasons } from '../../api/seasonsApi';
 import { getPlayers } from '../../api/playersApi';
 import { getItems } from '../../api/itemsApi';
+import { getItemCount } from '../../api/itemsApi';
 import Loading from '../../components/common/Loading';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import SeasonSelector from '../../components/common/SeasonSelector';
@@ -75,8 +76,21 @@ const Dashboard = () => {
 		enabled: !!selectedSeason
 	});
 
+	// 아이템 개수 가져오기
+	const {
+		data: itemCountData,
+		isLoading: isLoadingItemCount
+	} = useQuery({
+		queryKey: ['itemCount', selectedSeason],
+		queryFn: () => getItemCount(selectedSeason),
+		enabled: !!selectedSeason
+	});
+
 	// 로딩 상태 확인
 	const isLoading = isLoadingSeasons || isLoadingPlayers || isLoadingItems;
+
+	// 아이템 개수 확인
+	const itemCount = itemCountData?.count || 0;
 
 	// 에러 처리
   if (seasonsError) return <ErrorMessage error={seasonsError} />;
@@ -170,7 +184,7 @@ const Dashboard = () => {
 								등록된 아이템
 							</Typography>
 							<Typography variant='h4' component="div">
-								{items.length}개
+								{itemCount}개
 							</Typography>
 							<Button
 								component={Link}

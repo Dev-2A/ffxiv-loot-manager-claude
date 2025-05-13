@@ -29,3 +29,10 @@ export const deleteItem = async (id) => {
     const response = await api.delete(`/items/${id}/`);
     return response.data;
 };
+
+// 아이템 전체 개수 가져오기
+export const getItemCount = async (seasonId) => {
+    const params = seasonId ? { season: seasonId } : {};
+    const response = await api.get('/items/count/', { params })
+    return response.data;
+};
