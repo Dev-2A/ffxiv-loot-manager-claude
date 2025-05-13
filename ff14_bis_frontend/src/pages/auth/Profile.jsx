@@ -25,6 +25,7 @@ const Profile = () => {
   const queryClient = useQueryClient();
 
   const [email, setEmail] = useState(currentUser?.email || '');
+  const [nickname, setNickname] = useState(currentUser?.nickname || '');
   const [profileImage, setProfileImage] = useState(null);
   const [profileImageUrl, setProfileImageUrl] = useState(currentUser?.profile_image_url || '');
   const [alertInfo, setAlertInfo] = useState({ open: false, message: '', severity: 'success' });
@@ -42,6 +43,7 @@ const Profile = () => {
     onSuccess: (data) => {
       // 데이터가 로드되면 폼 상태 업데이트
       setEmail(data.email || '');
+      setNickname(data.nickname || '');
       setProfileImageUrl(data.profile_image_url || '');
     }
   });
@@ -94,6 +96,7 @@ const Profile = () => {
 
     const profileData = {
       email,
+      nickname: nickname || ''
     };
 
     if (profileImage) {
@@ -103,6 +106,8 @@ const Profile = () => {
     if (profileImageUrl) {
       profileData.profile_image_url = profileImageUrl;
     }
+
+    console.log('제출할 프로필 데이터:', profileData);
 
     updateProfileMutation.mutate(profileData);
   };
@@ -171,6 +176,17 @@ const Profile = () => {
                     margin='normal'
                   />
                 </Grid>
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="인게임 캐릭터 이름"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  margin='normal'
+                  helperText="인게임 캐릭터 이름과 일치하게 설정해야 본인 비스를 관리할 수 있습니다."
+                />
               </Grid>
 
               <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>

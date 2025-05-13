@@ -14,6 +14,16 @@ class Player(models.Model):
         verbose_name="직업 타입"
     )
     
+    # 연결된 사용자 (옵션) - 사용자와 플레이어 간 연결 추가
+    user = models.ForeignKey(
+        'CustomUser',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='players',
+        verbose_name='연결된 사용자'
+    )
+    
     def __str__(self):
         return f"{self.nickname} ({self.get_job_display()})"
     

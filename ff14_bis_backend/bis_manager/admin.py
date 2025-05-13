@@ -7,9 +7,9 @@ from .models import (
 
 @admin.register(CustomUser)
 class CustomUserAdmin(admin.ModelAdmin):
-    list_display = ('username', 'email', 'user_type', 'is_staff', 'is_active')
+    list_display = ('username', 'email', 'nickname', 'user_type', 'is_staff', 'is_active')
     list_filter = ('user_type', 'is_staff', 'is_active')
-    search_fields = ['username', 'email']
+    search_fields = ['username', 'email', 'nickname']
 
 @admin.register(Season)
 class SeasonAdmin(admin.ModelAdmin):
@@ -25,9 +25,15 @@ class ItemAdmin(admin.ModelAdmin):
 
 @admin.register(Player)
 class PalyerAdmin(admin.ModelAdmin):
-    list_display = ('nickname', 'job', 'job_type')
+    list_display = ('nickname', 'job', 'job_type', 'linked_user')
     list_filter = ('job', 'job_type')
     search_fields = ['nickname']
+    
+    def linked_user(self, obj):
+        """연결된 사용자 표시"""
+        return obj.user.username if obj.user else '-'
+    
+    linked_user.short_description = '연결된 사용자'
 
 @admin.register(Schedule)
 class ScheduleAdmin(admin.ModelAdmin):

@@ -6,7 +6,7 @@ from django.db import transaction
 
 from bis_manager.models import BisSet, BisItem, Materia, Item
 from bis_manager.serializers import BisSetSerializer, BisItemSerializer, MateriaSerializer
-from bis_manager.permissions import IsAdminOrReadOnly
+from bis_manager.permissions import IsBisSetOwnerOrAdmin
 
 import logging
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class BisSetViewSet(viewsets.ModelViewSet):
     queryset = BisSet.objects.all()
     serializer_class = BisSetSerializer
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsBisSetOwnerOrAdmin]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['player', 'season', 'bis_type']
     
@@ -80,7 +80,7 @@ class BisSetViewSet(viewsets.ModelViewSet):
 class BisItemViewSet(viewsets.ModelViewSet):
     queryset = BisItem.objects.all()
     serializer_class = BisItemSerializer
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsBisSetOwnerOrAdmin]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['bis_set', 'slot']
     

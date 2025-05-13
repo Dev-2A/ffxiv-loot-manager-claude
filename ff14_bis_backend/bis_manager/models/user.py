@@ -31,6 +31,13 @@ class CustomUser(AbstractUser):
         verbose_name='프로필 이미지 URL'
     )
     
+    nickname = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        verbose_name='인게임 캐릭터 이름'
+    )
+    
     # 명시적인 관계 선언 추가
     groups = models.ManyToManyField(
         Group,

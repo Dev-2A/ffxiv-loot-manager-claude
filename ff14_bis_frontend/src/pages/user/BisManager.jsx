@@ -30,12 +30,16 @@ import {
   DialogActions,
   DialogContentText,
   Chip,
-  Snackbar
+  Snackbar,
+  Tooltip
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import PersonIcon from '@mui/icons-material/Person';
+import InfoIcon from '@mui/icons-material/Info';
 import { getPlayers } from '../../api/playersApi';
 import { getBisSets, createBisSet, getBisSet, addItemToBisSet, deleteBisSet } from '../../api/bisApi';
 import { getSeasons } from '../../api/seasonsApi';
@@ -47,9 +51,13 @@ import SeasonSelector from '../../components/common/SeasonSelector';
 import { calculateBisProgress } from '../../utils/helpers';
 import JobIcon from '../../components/common/JobIcon';
 import ResourceDisplay from '../../components/bis/ResourceDisplay';
+import { useAuth } from '../../contexts/AuthContext';
 
 const BisManager = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { currentUser, isAdmin } = useAuth();
+  
   const [selectedSeason, setSelectedSeason] = useState(null);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [tabValue, setTabValue] = useState(0); // 0: 출발 비스, 1: 최종 비스
@@ -123,6 +131,16 @@ const BisManager = () => {
     enabled: !!selectedPlayer && !!selectedSeason && resourcesCalculated
   });
 
+  // 사용자 닉네임과 일치하는 플레이어를 자동으로 선택
+  useEffect(() => {
+    if (currentUser?.nickname && playersData?.results?.length > 0) {
+      const userPlayer = playersData.results.find(player => player.nickname === currentUser.nickname);
+      if (userPlayer && !selectedPlayer) {
+        setSelectedPlayer(userPlayer.id);
+      }
+    }
+  }, [currentUser, playersData, selectedPlayer]);
+
   // 비스 세트 데이터가 로드되면 현재 탭에 맞는 비스 세트 ID 설정
   useEffect(() => {
     if (bisSetsData?.results && bisSetsData.results.length > 0) {
@@ -174,7 +192,24 @@ const BisManager = () => {
       showAlert('비스 세트가 성공적으로 생성되었습니다.', 'success');
     },
     onError: (error) => {
-      showAlert(`비스 세트 생성 중 오류가 발생했습니다: ${error.message}`, 'error');
+      // 권한 오류(403)인 경우 더 명확한 메시지 표시
+      if (error.response && error.response.status === 403) {
+        if (currentUser && currentUser.nickname) {
+          const selectedPlayerData = playersData?.results?.find(p => p.id === selectedPlayer);
+          if (selectedPlayerData && selectedPlayerData.nickname !== currentUser.nickname) {
+            showAlert(
+              `본인의 캐릭터(${currentUser.nickname})만 비스 세트를 관리할 수 있습니다. 프로필에서 닉네임을 확인해주세요.`, 
+              'error'
+            );
+          } else {
+            showAlert('이 작업을 수행할 수 있는 권한이 없습니다.', 'error');
+          }
+        } else {
+          showAlert('캐릭터 닉네임을 설정해야 비스 세트를 관리할 수 있습니다. 프로필에서 닉네임을 설정해주세요.', 'error');
+        }
+      } else {
+        showAlert(`비스 세트 생성 중 오류가 발생했습니다: ${error.message}`, 'error');
+      }
     }
   });
 
@@ -190,7 +225,11 @@ const BisManager = () => {
       showAlert('아이템이 성공적으로 추가되었습니다.', 'success');
     },
     onError: (error) => {
-      showAlert(`아이템 추가 중 오류가 발생했습니다: ${error.message}`, 'error');
+      if (error.response && error.response.status === 403) {
+        showAlert('비스 세트를 수정할 권한이 없습니다. 본인의 캐릭터만 수정 가능합니다.', 'error');
+      } else {
+        showAlert(`아이템 추가 중 오류가 발생했습니다: ${error.message}`, 'error');
+      }
       handleCloseDialog();
     }
   });
@@ -205,7 +244,11 @@ const BisManager = () => {
     },
     onError: (error) => {
       setDeleteDialogOpen(false);
-      showAlert(`비스 세트 삭제 중 오류가 발생했습니다: ${error.message}`, 'error');
+      if (error.response && error.response.status === 403) {
+        showAlert('비스 세트를 삭제할 권한이 없습니다. 본인의 캐릭터만 삭제 가능합니다.', 'error');
+      } else {
+        showAlert(`비스 세트 삭제 중 오류가 발생했습니다: ${error.message}`, 'error');
+      }
     }
   });
 
@@ -296,6 +339,20 @@ const BisManager = () => {
       return;
     }
 
+    // 로그인 상태 확인
+    if (!currentUser) {
+      showAlert('비스 세트를 생성하려면 로그인이 필요합니다.', 'warning');
+      navigate('/login', { state: { returnUrl: '/bis' } });
+      return;
+    }
+
+    // 닉네임 확인 (관리자가 아닌 경우)
+    if (!isAdmin && (!currentUser.nickname || currentUser.nickname.trim() === '')) {
+      showAlert('비스 세트를 생성하려면 프로필에서 게임 캐릭터 닉네임을 설정해야 합니다.', 'warning');
+      navigate('/profile');
+      return;
+    }
+
     createBisSetMutation.mutate({
       player: selectedPlayer,
       season: selectedSeason,
@@ -334,6 +391,24 @@ const BisManager = () => {
     });
   };
 
+  // 닉네임 설정 권장 버튼 핸들러
+  const handleGoToProfile = () => {
+    navigate('/profile');
+  };
+
+  // 사용자 닉네임과 일치하는 플레이어 확인
+  const isCurrentUserPlayer = (player) => {
+    return currentUser && currentUser.nickname === player.nickname;
+  };
+
+  // 플레이어 수정 권한 확인
+  const canModifyPlayer = (playerId) => {
+    if (isAdmin) return true;
+    
+    const player = playersData?.results?.find(p => p.id === playerId);
+    return player && currentUser && player.nickname === currentUser.nickname;
+  };
+
   // 로딩 상태 확인
   const isLoading = isLoadingSeasons || isLoadingPlayers || isLoadingBisSets;
   
@@ -356,6 +431,9 @@ const BisManager = () => {
   
   // 현재 선택된 비스 세트
   const currentBisSet = tabValue === 0 ? startBisSet : finalBisSet;
+  
+  // 선택된 플레이어 정보
+  const selectedPlayerData = players.find(p => p.id === selectedPlayer);
   
   // 장비 슬롯별 아이템 분류
   const slotsConfig = [
@@ -383,6 +461,44 @@ const BisManager = () => {
         </Typography>
       </Box>
 
+      {/* 현재 사용자 정보 */}
+      {currentUser ? (
+        currentUser.nickname ? (
+          <Alert severity="info" sx={{ mb: 4 }}>
+            <Typography>
+              현재 <strong>{currentUser.username}</strong> 계정으로 로그인되어 있습니다. 게임 닉네임: <strong>{currentUser.nickname}</strong>
+              {!isAdmin && (
+                <span>
+                  {" "}- 본인 캐릭터의 비스 세트만 관리할 수 있습니다.
+                </span>
+              )}
+            </Typography>
+          </Alert>
+        ) : (
+          <Alert severity="warning" sx={{ mb: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography>
+                게임 캐릭터 닉네임을 설정하지 않았습니다. 본인 캐릭터의 비스 세트를 관리하려면 프로필에서 닉네임을 설정하세요.
+              </Typography>
+              <Button variant="outlined" size="small" onClick={handleGoToProfile}>
+                프로필 설정
+              </Button>
+            </Box>
+          </Alert>
+        )
+      ) : (
+        <Alert severity="warning" sx={{ mb: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography>
+              로그인하지 않은 상태에서는 비스 세트를 볼 수만 있고 생성하거나 수정할 수 없습니다.
+            </Typography>
+            <Button variant="outlined" size="small" onClick={() => navigate('/login')}>
+              로그인
+            </Button>
+          </Box>
+        </Alert>
+      )}
+
       {/* 선택 영역 */}
       <Paper sx={{ p: 3, mb: 4 }}>
         <Grid container spacing={3}>
@@ -397,12 +513,29 @@ const BisManager = () => {
               >
                 <MenuItem value="">플레이어 선택</MenuItem>
                 {players.map((player) => (
-                  <MenuItem key={player.id} value={player.id}>
+                  <MenuItem 
+                    key={player.id} 
+                    value={player.id}
+                    sx={{ 
+                      bgcolor: isCurrentUserPlayer(player) ? 'rgba(25, 118, 210, 0.08)' : 'transparent',
+                      fontWeight: isCurrentUserPlayer(player) ? 600 : 400
+                    }}
+                  >
                     <Box sx={{ display: 'flex', alignItems: 'center'}}>
                       <JobIcon job={player.job} size={24} />
                       <Typography sx={{ ml: 1.5 }}>
                         {player.nickname} ({player.job_display})
+                        {isCurrentUserPlayer(player) && (
+                          <Typography component="span" color="primary.main" sx={{ ml: 1, fontWeight: 600 }}>
+                            (내 캐릭터)
+                          </Typography>
+                        )}
                       </Typography>
+                      {!isCurrentUserPlayer(player) && !isAdmin && (
+                        <Tooltip title="본인 캐릭터만 비스 세트를 관리할 수 있습니다">
+                          <InfoIcon sx={{ ml: 1, fontSize: 16, color: 'text.secondary' }} />
+                        </Tooltip>
+                      )}
                     </Box>
                   </MenuItem>
                 ))}
@@ -426,6 +559,16 @@ const BisManager = () => {
         </Alert>
       )}
 
+      {/* 본인 캐릭터가 아닌 경우 경고 */}
+      {selectedPlayer && currentUser && currentUser.nickname && !isAdmin && 
+       selectedPlayerData && selectedPlayerData.nickname !== currentUser.nickname && (
+        <Alert severity='warning' sx={{ mb: 4 }}>
+          <Typography>
+            현재 <strong>{selectedPlayerData.nickname}</strong> 플레이어를 선택했습니다. 본인 캐릭터가 아니므로 비스 세트를 관리할 수 없습니다.
+          </Typography>
+        </Alert>
+      )}
+
       {/* 선택된 플레이어가 있을 때 비스 관리 UI */}
       {selectedPlayer && (
         <Box>
@@ -446,14 +589,20 @@ const BisManager = () => {
                   <Typography paragraph>
                     {tabValue === 0 ? '출발 비스' : '최종 비스'} 세트가 아직 생성되지 않았습니다.
                   </Typography>
-                  <Button
-                    variant='contained'
-                    color='primary'
-                    startIcon={<AddIcon />}
-                    onClick={() => handleCreateBisSet(tabValue === 0 ? '출발' : '최종')}
-                  >
-                    {tabValue === 0 ? '출발 비스' : '최종 비스'} 세트 생성
-                  </Button>
+                  {(isAdmin || (currentUser && currentUser.nickname === selectedPlayerData?.nickname)) ? (
+                    <Button
+                      variant='contained'
+                      color='primary'
+                      startIcon={<AddIcon />}
+                      onClick={() => handleCreateBisSet(tabValue === 0 ? '출발' : '최종')}
+                    >
+                      {tabValue === 0 ? '출발 비스' : '최종 비스'} 세트 생성
+                    </Button>
+                  ) : (
+                    <Alert severity="info" sx={{ maxWidth: 500, mx: 'auto' }}>
+                      이 플레이어의 비스 세트를 생성할 권한이 없습니다. 본인 캐릭터만 비스 세트를 관리할 수 있습니다.
+                    </Alert>
+                  )}
                 </Box>
               )}
 
@@ -478,18 +627,20 @@ const BisManager = () => {
                       />
                     </Box>
                     
-                    {/* 삭제 버튼 */}
-                    <Box sx={{ ml: 2 }}>
-                      <Button
-                        variant="outlined"
-                        color="error"
-                        startIcon={<DeleteIcon />}
-                        onClick={handleOpenDeleteDialog}
-                        size="small"
-                      >
-                        삭제
-                      </Button>
-                    </Box>
+                    {/* 삭제 버튼 - 관리자 또는 본인 캐릭터만 표시 */}
+                    {canModifyPlayer(selectedPlayer) && (
+                      <Box sx={{ ml: 2 }}>
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          startIcon={<DeleteIcon />}
+                          onClick={handleOpenDeleteDialog}
+                          size="small"
+                        >
+                          삭제
+                        </Button>
+                      </Box>
+                    )}
                   </Box>
 
                   <Divider sx={{ mb: 3 }} />
@@ -546,13 +697,24 @@ const BisManager = () => {
                               </CardContent>
                               
                               <CardActions>
-                                <Button
-                                  size='small'
-                                  startIcon={slotItem ? <EditIcon /> : <AddIcon />}
-                                  onClick={() => handleOpenDialog(currentBisSet.id, slotConfig.slot)}
-                                >
-                                  {slotItem ? '변경' : '추가'}
-                                </Button>
+                                {canModifyPlayer(selectedPlayer) ? (
+                                  <Button
+                                    size='small'
+                                    startIcon={slotItem ? <EditIcon /> : <AddIcon />}
+                                    onClick={() => handleOpenDialog(currentBisSet.id, slotConfig.slot)}
+                                  >
+                                    {slotItem ? '변경' : '추가'}
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size='small'
+                                    disabled
+                                    startIcon={<InfoIcon />}
+                                    title="본인 캐릭터만 수정 가능합니다"
+                                  >
+                                    수정 불가
+                                  </Button>
+                                )}
                               </CardActions>
                             </Card>
                           </Grid>
@@ -664,6 +826,8 @@ const BisManager = () => {
                         cursor: 'pointer',
                         '&:hover': {
                           boxShadow: 6,
+                          transform: 'translateY(-4px)',
+                          transition: 'all 0.3s ease'
                         },
                       }}
                       onClick={() => handleAddItem(item.id)}

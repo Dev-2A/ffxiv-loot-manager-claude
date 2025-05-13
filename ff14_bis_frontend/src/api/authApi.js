@@ -40,6 +40,11 @@ export const updateProfile = async (profileData) => {
     formData.append('email', profileData.email);
   }
 
+  // 닉네임 추가
+  if(profileData.nickname !== undefined) {
+    formData.append('nickname', profileData.nickname);
+  }
+
   // 프로필 이미지 파일 추가
   if(profileData.profile_image && profileData.profile_image instanceof File) {
     formData.append('profile_image', profileData.profile_image);
@@ -50,10 +55,21 @@ export const updateProfile = async (profileData) => {
     formData.append('profile_image_url', profileData.profile_image_url);
   }
 
-  const response = await api.patch('/auth/user/update-profile/', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    }
-  });
-  return response.data;
+  console.log('프로필 업데이트 요청:');
+  for (let pair of formData.entries()) {
+    console.log(pair[0] + ': ' + pair[1]);
+  }
+  try {
+    const response = await api.patch('/auth/user/update-profile/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    console.log('프로필 업데이트 응답:', response.data)
+    return response.data;
+  } catch (error) {
+    console.error('프로필 업데이트 오류:', error);
+    console.error('오류 응답:', error.response?.data);
+    throw error;
+  }
 };

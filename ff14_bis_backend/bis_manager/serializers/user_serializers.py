@@ -10,7 +10,7 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'user_type', 'profile_image', 'profile_image_url']
+        fields = ['id', 'username', 'email', 'user_type', 'profile_image', 'profile_image_url', 'nickname']
     
     def get_profile_image_url(self, obj):
         """프로필 이미지 URL 반환"""
@@ -52,12 +52,22 @@ class RegisterSerializer(serializers.ModelSerializer):
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['email', 'profile_image', 'profile_image_url']
+        fields = ['email', 'profile_image', 'profile_image_url', 'nickname']
+        extra_kwargs = {
+            'email': {'required': False},
+            'nickname': {'required': False},
+            'profile_image': {'required': False},
+            'profile_image_url': {'required': False}
+        }
     
     def update(self, instance, validated_data):
         # 이메일 업데이트
         if 'email' in validated_data:
             instance.email = validated_data['email']
+            
+        # 닉네임 업데이트
+        if 'nickname' in validated_data:
+            instance.nickname = validated_data['nickname']
         
         # 프로필 이미지 업데이트 (파일 업로드)
         if 'profile_image' in validated_data:
