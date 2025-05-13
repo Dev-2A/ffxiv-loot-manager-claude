@@ -187,9 +187,16 @@ const BisManager = () => {
   // 비스 세트 생성 mutation
   const createBisSetMutation = useMutation({
     mutationFn: createBisSet,
-    onSuccess: () => {
-      refetchBisSets();
-      showAlert('비스 세트가 성공적으로 생성되었습니다.', 'success');
+    onSuccess: (data) => {
+      // 비스 세트 목록 쿼리 무효화 및 다시 불러오기
+      queryClient.invalidateQueries(['bisSets', selectedSeason, selectedPlayer]);
+      refetchBisSets().then(() => {
+        // 성공 후 새로 생성된 비스 세트 ID 선택
+        if (data && data.id) {
+          setSelectedBisSet(data.id);
+        }
+        showAlert('비스 세트가 성공적으로 생성되었습니다.', 'success');
+      });
     },
     onError: (error) => {
       // 권한 오류(403)인 경우 더 명확한 메시지 표시
@@ -225,11 +232,16 @@ const BisManager = () => {
       showAlert('아이템이 성공적으로 추가되었습니다.', 'success');
     },
     onError: (error) => {
-      if (error.response && error.response.status === 403) {
-        showAlert('비스 세트를 수정할 권한이 없습니다. 본인의 캐릭터만 수정 가능합니다.', 'error');
-      } else {
-        showAlert(`아이템 추가 중 오류가 발생했습니다: ${error.message}`, 'error');
+      let errorMessage = '아이템 추가 중 오류가 발생했습니다.';
+    
+      // 응답 데이터에서 더 상세한 오류 메시지 확인
+      if (error.response && error.response.data && error.response.data.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response && error.response.status === 403) {
+        errorMessage = '비스 세트를 수정할 권한이 없습니다. 본인의 캐릭터만 수정 가능합니다.';
       }
+      
+      showAlert(errorMessage, 'error');
       handleCloseDialog();
     }
   });

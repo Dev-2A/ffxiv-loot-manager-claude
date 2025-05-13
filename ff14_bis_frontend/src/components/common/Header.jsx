@@ -536,8 +536,9 @@ const Header = ({ toggleSidebar, darkMode, toggleDarkMode }) => {
                   sx={{ mx: 'auto', mb: 1, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}
                 />
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  {currentUser.username}
+                  {currentUser.nickname || currentUser.username}
                 </Typography>
+
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                   {isAdmin ? '공대장' : '공대원'}
                 </Typography>

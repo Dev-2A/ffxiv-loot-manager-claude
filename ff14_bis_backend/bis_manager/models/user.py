@@ -24,7 +24,7 @@ class CustomUser(AbstractUser):
         verbose_name='프로필 이미지'
     )
     
-    profile_image_url = models.URLField(
+    profile_image_url = models.CharField(
         max_length=500,
         null=True,
         blank=True,

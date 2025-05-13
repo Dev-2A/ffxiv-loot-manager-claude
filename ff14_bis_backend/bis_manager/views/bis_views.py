@@ -25,6 +25,20 @@ class BisSetViewSet(viewsets.ModelViewSet):
         bis_set = self.get_object()
         logger.info(f"add_item 호출: BisSet ID={pk}, bis_type={bis_set.bis_type}")
         
+        # 디버깅 정보 추가
+        logger.info(f"사용자: {request.user.username}, 닉네임: {request.user.nickname}")
+        logger.info(f"플레이어: {bis_set.player.nickname}, ID: {bis_set.player.id}")
+        logger.info(f"권한 검사: {request.user.nickname == bis_set.player.nickname}")
+        logger.info(f"사용자 타입: {request.user.user_type}, 관리자 여부: {request.user.is_staff}")
+        
+        # 권한 추가 검사 - user.nickname과 player.nickname 비교
+        if not request.user.is_staff and not request.user.user_type == 'admin':
+            if not request.user.nickname or request.user.nickname != bis_set.player.nickname:
+                return Response(
+                    {'error': '본인의 캐릭터 비스 세트만 수정할 수 있습니다. 프로필에서 닉네임을 확인해주세요.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
         # 요청 데이터 검증
         item_id = request.data.get('item_id')
         slot = request.data.get('slot')
