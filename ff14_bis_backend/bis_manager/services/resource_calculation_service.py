@@ -1,3 +1,4 @@
+# ff14_bis_backend/bis_manager/services/resource_calculation_service.py
 from bis_manager.constants import TOMESTONE_COSTS, PAGE_COSTS, UPGRADE_COSTS
 from bis_manager.models import BisSet, BisItem, Item, ResourceTracking
 
@@ -11,22 +12,27 @@ class ResourceCalculationService:
     def calculate_resources_for_player(player, season):
         """플레이어의 최종 비스에 필요한 모든 재화 계산"""
         logger.info(f"calculate_resources_for_player 호출: player_id={player.id}, season_id={season.id}")
+        print(f"[DEBUG] calculate_resources_for_player 호출: player_id={player.id}, season_id={season.id}")
         
         try:
             # 최종 비스 세트 가져오기
             try:
                 final_bis = BisSet.objects.get(player=player, season=season, bis_type='최종')
                 logger.info(f"최종 비스 세트 찾음: id={final_bis.id}")
+                print(f"[DEBUG] 최종 비스 세트 찾음: id={final_bis.id}")
             except BisSet.DoesNotExist:
                 logger.warning(f"최종 비스 세트를 찾을 수 없음: player_id={player.id}, season_id={season.id}")
+                print(f"[DEBUG] 최종 비스 세트를 찾을 수 없음: player_id={player.id}, season_id={season.id}")
                 return None
             
             # 출발 비스 세트 가져오기 (있을 경우)
             try:
                 start_bis = BisSet.objects.get(player=player, season=season, bis_type='출발')
                 logger.info(f"출발 비스 세트 찾음: id={start_bis.id}")
+                print(f"[DEBUG] 출발 비스 세트 찾음: id={start_bis.id}")
             except BisSet.DoesNotExist:
                 logger.info(f"출발 비스 세트 없음: player_id={player.id}, season_id={season.id}")
+                print(f"[DEBUG] 출발 비스 세트 없음: player_id={player.id}, season_id={season.id}")
                 start_bis = None
             
             # 필요한 재화 초기화
@@ -44,6 +50,7 @@ class ResourceCalculationService:
             # 최종 비스에 있는 아이템 확인
             final_bis_items = BisItem.objects.filter(bis_set=final_bis)
             logger.info(f"최종 비스 아이템 수: {final_bis_items.count()}")
+            print(f"[DEBUG] 최종 비스 아이템 수: {final_bis_items.count()}")
             
             # 출발 비스에 있는 아이템 슬롯별로 추출 (있을 경우)
             start_bis_slots = {}
@@ -51,6 +58,7 @@ class ResourceCalculationService:
                 for item in BisItem.objects.filter(bis_set=start_bis):
                     start_bis_slots[item.slot] = item.item
                 logger.info(f"출발 비스 아이템 수: {len(start_bis_slots)}")
+                print(f"[DEBUG] 출발 비스 아이템 수: {len(start_bis_slots)}")
             
             for bis_item in final_bis_items:
                 # 출발 비스에 같은 아이템이 있다면 건너뛰기
@@ -58,12 +66,14 @@ class ResourceCalculationService:
                     start_item = start_bis_slots[bis_item.slot]
                     if start_item.id == bis_item.item.id:
                         logger.info(f"출발 비스와 동일한 아이템 건너뛰기: slot={bis_item.slot}, item_id={bis_item.item.id}")
+                        print(f"[DEBUG] 출발 비스와 동일한 아이템 건너뛰기: slot={bis_item.slot}, item_id={bis_item.item.id}")
                         continue
                 
                 item = bis_item.item
                 item_type = bis_item.slot
                 
                 logger.info(f"아이템 처리: slot={item_type}, item_id={item.id}, name={item.name}, source={item.source}")
+                print(f"[DEBUG] 아이템 처리: slot={item_type}, item_id={item.id}, name={item.name}, source={item.source}")
                 
                 # 아이템 출처에 따라 필요한 재화 계산
                 if item.source == '보강석판템':
@@ -91,19 +101,23 @@ class ResourceCalculationService:
                         count = PAGE_COSTS[item_type]['count']
                         resources[f'낱장_{floor}층'] += count
                         logger.info(f"낱장 추가: 낱장_{floor}층 +{count}")
+                        print(f"[DEBUG] 낱장 추가: 낱장_{floor}층 +{count}")
             
             # 강화 아이템을 직접 낱장으로 교환할 경우 필요한 낱장 계산
             if resources['경화약'] > 0:
                 resources['낱장_2층'] += resources['경화약'] * UPGRADE_COSTS['경화약']['count']
                 logger.info(f"경화약으로 인한 낱장_2층 추가: {resources['경화약']} * {UPGRADE_COSTS['경화약']['count']} = {resources['경화약'] * UPGRADE_COSTS['경화약']['count']}")
+                print(f"[DEBUG] 경화약으로 인한 낱장_2층 추가: {resources['경화약']} * {UPGRADE_COSTS['경화약']['count']} = {resources['경화약'] * UPGRADE_COSTS['경화약']['count']}")
             
             if resources['강화섬유'] > 0:
                 resources['낱장_3층'] += resources['강화섬유'] * UPGRADE_COSTS['강화섬유']['count']
                 logger.info(f"강화섬유로 인한 낱장_3층 추가: {resources['강화섬유']} * {UPGRADE_COSTS['강화섬유']['count']} = {resources['강화섬유'] * UPGRADE_COSTS['강화섬유']['count']}")
+                print(f"[DEBUG] 강화섬유로 인한 낱장_3층 추가: {resources['강화섬유']} * {UPGRADE_COSTS['강화섬유']['count']} = {resources['강화섬유'] * UPGRADE_COSTS['강화섬유']['count']}")
             
             if resources['무기석판'] > 0:
                 resources['낱장_2층'] += resources['무기석판'] * UPGRADE_COSTS['무기석판']['count']
                 logger.info(f"무기석판으로 인한 낱장_2층 추가: {resources['무기석판']} * {UPGRADE_COSTS['무기석판']['count']} = {resources['무기석판'] * UPGRADE_COSTS['무기석판']['count']}")
+                print(f"[DEBUG] 무기석판으로 인한 낱장_2층 추가: {resources['무기석판']} * {UPGRADE_COSTS['무기석판']['count']} = {resources['무기석판'] * UPGRADE_COSTS['무기석판']['count']}")
             
             # ResourceTracking 모델 업데이트
             for resource_type, amount in resources.items():
@@ -114,10 +128,15 @@ class ResourceCalculationService:
                     defaults={'total_needed': amount}
                 )
                 logger.info(f"자원 업데이트: player_id={player.id}, season_id={season.id}, resource_type={resource_type}, amount={amount}")
+                print(f"[DEBUG] 자원 업데이트: player_id={player.id}, season_id={season.id}, resource_type={resource_type}, amount={amount}")
             
             logger.info(f"자원 계산 완료: {resources}")
+            print(f"[DEBUG] 자원 계산 완료: {resources}")
             return resources
         
         except Exception as e:
             logger.error(f"자원 계산 중 예외 발생: {str(e)}", exc_info=True)
+            print(f"[ERROR] 자원 계산 중 예외 발생: {str(e)}")
+            import traceback
+            traceback.print_exc()
             raise e

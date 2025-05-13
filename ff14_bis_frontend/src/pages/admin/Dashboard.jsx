@@ -68,7 +68,10 @@ const Dashboard = () => {
 		error: itemsError
 	} = useQuery({
 		queryKey: ['items', selectedSeason],
-		queryFn: () => getItems({ season: selectedSeason }),
+		queryFn: () => getItems({
+			season: selectedSeason,
+			page_size: 1000
+		}),
 		enabled: !!selectedSeason
 	});
 

@@ -1,3 +1,4 @@
+// ff14_bis_frontend/src/pages/user/BisManager.jsx
 import React, { useState, useEffect } from 'react';
 import { 
   Box, 
@@ -17,8 +18,12 @@ import {
   LinearProgress,
   Divider,
   Alert,
-  Tooltip,
-  IconButton,
+  Table,
+  TableContainer,
+  TableHead,
+  TableBody,
+  TableCell,
+  TableRow,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -35,12 +40,13 @@ import { getPlayers } from '../../api/playersApi';
 import { getBisSets, createBisSet, getBisSet, addItemToBisSet, deleteBisSet } from '../../api/bisApi';
 import { getSeasons } from '../../api/seasonsApi';
 import { getItems } from '../../api/itemsApi';
-import { calculatePlayerResources } from '../../api/resourcesApi';
+import { calculatePlayerResources, getResources } from '../../api/resourcesApi';
 import Loading from '../../components/common/Loading';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import SeasonSelector from '../../components/common/SeasonSelector';
 import { calculateBisProgress } from '../../utils/helpers';
 import JobIcon from '../../components/common/JobIcon';
+import ResourceDisplay from '../../components/bis/ResourceDisplay';
 
 const BisManager = () => {
   const queryClient = useQueryClient();
@@ -54,6 +60,7 @@ const BisManager = () => {
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
   const [alertSeverity, setAlertSeverity] = useState('success');
+  const [resourcesCalculated, setResourcesCalculated] = useState(false);
 
   // 시즌 정보 가져오기
   const {
@@ -99,21 +106,39 @@ const BisManager = () => {
       season: selectedSeason,
       player: selectedPlayer
     }),
-    enabled: !!selectedSeason && !!selectedPlayer,
-    onSuccess: (data) => {
-      // 비스 세트 데이터가 로드되면 현재 탭에 맞는 비스 세트 ID 설정
-      if (data?.results && data.results.length > 0) {
-        const startBisSet = data.results.find(set => set.bis_type === '출발');
-        const finalBisSet = data.results.find(set => set.bis_type === '최종');
-        
-        if (tabValue === 0 && startBisSet) {
-          setSelectedBisSet(startBisSet.id);
-        } else if (tabValue === 1 && finalBisSet) {
-          setSelectedBisSet(finalBisSet.id);
-        }
-      }
-    }
+    enabled: !!selectedSeason && !!selectedPlayer
   });
+
+  // 선택한 플레이어와 시즌에 맞는 자원 정보 가져오기
+  const {
+    data: resourcesData,
+    isLoading: isLoadingResources,
+    refetch: refetchResources
+  } = useQuery({
+    queryKey: ['resources', selectedPlayer, selectedSeason],
+    queryFn: () => getResources({ 
+      player: selectedPlayer,
+      season: selectedSeason
+    }),
+    enabled: !!selectedPlayer && !!selectedSeason && resourcesCalculated
+  });
+
+  // 비스 세트 데이터가 로드되면 현재 탭에 맞는 비스 세트 ID 설정
+  useEffect(() => {
+    if (bisSetsData?.results && bisSetsData.results.length > 0) {
+      const startBisSet = bisSetsData.results.find(set => set.bis_type === '출발');
+      const finalBisSet = bisSetsData.results.find(set => set.bis_type === '최종');
+      
+      if (tabValue === 0 && startBisSet) {
+        setSelectedBisSet(startBisSet.id);
+      } else if (tabValue === 1 && finalBisSet) {
+        setSelectedBisSet(finalBisSet.id);
+      }
+    } else {
+      // 비스 세트가 없는 경우 선택 초기화
+      setSelectedBisSet(null);
+    }
+  }, [bisSetsData, tabValue]);
 
   // 현재 선택된 비스 세트의 상세 정보 가져오기
   const {
@@ -156,12 +181,9 @@ const BisManager = () => {
   // 아이템 추가 mutation
   const addItemToBisSetMutation = useMutation({
     mutationFn: ({ bisSetId, itemId, slot }) => {
-      console.log(`아이템 추가 요청: bisSetId=${bisSetId}, itemId=${itemId}, slot=${slot}`);
       return addItemToBisSet(bisSetId, { item_id: itemId, slot });
     },
     onSuccess: (data, variables) => {
-      console.log(`아이템 추가 성공: ${JSON.stringify(data)}, variables: ${JSON.stringify(variables)}`);
-      
       // 특정 비스 세트만 갱신
       queryClient.invalidateQueries(['bisSet', variables.bisSetId]);
       handleCloseDialog();
@@ -191,12 +213,12 @@ const BisManager = () => {
   const calculateResourcesMutation = useMutation({
     mutationFn: ({ playerId, seasonId }) => calculatePlayerResources(playerId, seasonId),
     onSuccess: (data) => {
-      console.log('자원 계산 성공:', data);
+      setResourcesCalculated(true);
       queryClient.invalidateQueries(['resources', selectedPlayer, selectedSeason]);
+      refetchResources();
       showAlert('필요 자원 계산이 완료되었습니다.', 'success');
     },
     onError: (error) => {
-      console.error('자원 계산 오류:', error);
       showAlert(`자원 계산 중 오류가 발생했습니다: ${error.message}`, 'error');
     }
   });
@@ -326,6 +348,7 @@ const BisManager = () => {
   const players = playersData?.results || [];
   const bisSets = bisSetsData?.results || [];
   const items = itemsData?.results || [];
+  const resources = resourcesData?.results || [];
   
   // 선택한 플레이어의 비스 세트 필터링
   const startBisSet = bisSets.find(set => set.bis_type === '출발');
@@ -540,15 +563,73 @@ const BisManager = () => {
 
                   {/* 자원 계산 버튼 */}
                   {tabValue === 1 && (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                      <Button
-                        variant='contained'
-                        color='secondary'
-                        onClick={handleCalculateResources}
-                        disabled={calculateResourcesMutation.isLoading}
-                      >
-                        {calculateResourcesMutation.isLoading ? '계산 중...' : '필요 자원 계산하기'}
-                      </Button>
+                    <Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                        <Button
+                          variant='contained'
+                          color='secondary'
+                          onClick={handleCalculateResources}
+                          disabled={calculateResourcesMutation.isLoading}
+                        >
+                          {calculateResourcesMutation.isLoading ? '계산 중...' : '필요 자원 계산하기'}
+                        </Button>
+                      </Box>
+                      
+                      {/* 자원 정보 표시 */}
+                      {resourcesCalculated && !isLoadingResources && (
+                        <Box sx={{ mt: 4 }}>
+                          <Paper sx={{ p: 3 }}>
+                            <Typography variant="h6" gutterBottom>
+                              필요 자원 현황
+                            </Typography>
+                            {resources.length > 0 ? (
+                              <TableContainer>
+                                <Table>
+                                  <TableHead>
+                                    <TableRow>
+                                      <TableCell>자원 종류</TableCell>
+                                      <TableCell align="right">현재 보유량</TableCell>
+                                      <TableCell align="right">총 필요량</TableCell>
+                                      <TableCell align="right">진행률</TableCell>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {resources.map((resource) => {
+                                      const progressPercent = resource.total_needed > 0 
+                                        ? Math.min(100, Math.round((resource.current_amount / resource.total_needed) * 100))
+                                        : 100;
+                                        
+                                      return (
+                                        <TableRow key={resource.id}>
+                                          <TableCell>{resource.resource_type_display || resource.resource_type}</TableCell>
+                                          <TableCell align="right">{resource.current_amount}</TableCell>
+                                          <TableCell align="right">{resource.total_needed}</TableCell>
+                                          <TableCell align="right" sx={{ width: '30%' }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                              <Box sx={{ width: '100%', mr: 1 }}>
+                                                <LinearProgress variant="determinate" value={progressPercent} />
+                                              </Box>
+                                              <Box sx={{ minWidth: 35 }}>
+                                                <Typography variant="body2" color="text.secondary">
+                                                  {progressPercent}%
+                                                </Typography>
+                                              </Box>
+                                            </Box>
+                                          </TableCell>
+                                        </TableRow>
+                                      );
+                                    })}
+                                  </TableBody>
+                                </Table>
+                              </TableContainer>
+                            ) : (
+                              <Typography variant='body2' align='center' color='text.secondary'>
+                                계산된 자원 정보가 없습니다.
+                              </Typography>
+                            )}
+                          </Paper>
+                        </Box>
+                      )}
                     </Box>
                   )}
                 </Box>
