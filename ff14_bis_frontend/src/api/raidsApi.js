@@ -44,13 +44,20 @@ export const createItemAcquisition = async (itemAcquisitionData) => {
 
 // 우선순위 분배 계산
 export const calculateDistributionPriority = async (seasonId) => {
-    const response = await api.post('/distribution-priorities/calculate/', { season: seasonId });
-    return response.data;
+    console.log(`우선순위 계산 요청: seasonId=${seasonId}`);
+    try {
+        const response = await api.post('/distribution-priorities/calculate/', { season: seasonId });
+        console.log('우선순위 계산 응답:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('우선순위 계산 오류:', error);
+        throw error;
+    }
 };
 
 // 주간 분배 계획 생성
 export const generateDistributionPlan = async (seasonId, weeks = 12) => {
-    const response = await api.post('/distribution-priorites/generate_distribution_plan/', {
+    const response = await api.post('/distribution-priorities/generate_distribution_plan/', {
         season: seasonId,
         weeks
     });
@@ -59,6 +66,21 @@ export const generateDistributionPlan = async (seasonId, weeks = 12) => {
 
 // 분배 우선순위 목록 가져오기
 export const getDistributionPriorities = async (params = {}) => {
-    const response = await api.get('/distribution-priorities/', { params });
-    return response.data;
+    console.log('우선순위 데이터 요청 파라미터:', params);
+    try {
+        const response = await api.get('/distribution-priorities/', { 
+            params,
+            // 캐싱 방지
+            headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        });
+        console.log('우선순위 데이터 응답:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('우선순위 데이터 가져오기 실패:', error);
+        throw error;
+    }
 };

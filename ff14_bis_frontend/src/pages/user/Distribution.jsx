@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Box, 
   Typography, 
@@ -48,6 +48,21 @@ const Distribution = () => {
   const [tabValue, setTabValue] = useState(0);
   const [weeksForPlan, setWeeksForPlan] = useState(12);
 
+  // 아이템 종류 목록 - itemTypes를 먼저 선언
+  const itemTypes = [
+    { value: '무기', label: '무기' },
+    { value: '모자', label: '모자' },
+    { value: '상의', label: '상의' },
+    { value: '장갑', label: '장갑' },
+    { value: '하의', label: '하의' },
+    { value: '신발', label: '신발' },
+    { value: '귀걸이', label: '귀걸이' },
+    { value: '목걸이', label: '목걸이' },
+    { value: '팔찌', label: '팔찌' },
+    { value: '반지1', label: '반지1' },
+    { value: '반지2', label: '반지2' },
+  ];
+
   // 시즌 정보 가져오기
   const {
     data: seasonsData,
@@ -89,9 +104,38 @@ const Distribution = () => {
     refetch: refetchPriorities
   } = useQuery({
     queryKey: ['distributionPriorities', selectedSeason],
-    queryFn: () => getDistributionPriorities({ season: selectedSeason }),
-    enabled: !!selectedSeason
+    queryFn: () => getDistributionPriorities({
+      season: selectedSeason,
+      page_size: 100
+    }),
+    enabled: !!selectedSeason,
+    staleTime: 0, // 항상 최신 데이터 사용
+    refetchOnWindowFocus: false // 창 포커스 시 재요청 방지
   });
+  
+  // 아이템 타입별 우선순위 그룹화
+  const prioritiesByType = useMemo(() => {
+    if (!prioritiesData?.results) {
+      console.log('우선순위 데이터 없음');
+      return {};
+    }
+    
+    console.log('우선순위 데이터 그룹화:', prioritiesData.results.length);
+    return itemTypes.reduce((acc, type) => {
+      const typeData = prioritiesData.results.filter(p => p.item_type === type.value);
+      console.log(`타입 ${type.value}의 데이터:`, typeData.length);
+      acc[type.value] = typeData.sort((a, b) => a.priority - b.priority);
+      return acc;
+    }, {});
+  }, [prioritiesData, itemTypes]);
+
+  // 디버깅용 useEffect
+  useEffect(() => {
+    if (prioritiesData) {
+      console.log('로드된 우선순위 데이터:', prioritiesData);
+      console.log('우선순위 목록 길이:', prioritiesData.results?.length || 0);
+    }
+  }, [prioritiesData]);
 
   // 분배 계획 가져오기
   const {
@@ -108,10 +152,14 @@ const Distribution = () => {
   const calculatePriorityMutation = useMutation({
     mutationFn: () => calculateDistributionPriority(selectedSeason),
     onSuccess: () => {
+      console.log('우선순위 계산 성공');
       queryClient.invalidateQueries(['distributionPriorities', selectedSeason]);
+      refetchPriorities(); // 즉시 다시 가져오기
+      setTabValue(0); // 우선순위 목록 탭으로 전환
       alert('분배 우선순위가 성공적으로 계산되었습니다.');
     },
     onError: (error) => {
+      console.error('우선순위 계산 실패:', error);
       alert(`분배 우선순위 계산 중 오류가 발생했습니다: ${error.message}`);
     }
   });
@@ -133,9 +181,10 @@ const Distribution = () => {
     setTabValue(newValue);
   };
 
-  // 분배 우선순위 계산 핸들러
+  // 우선순위 계산 핸들러
   const handleCalculatePriority = () => {
     if (window.confirm('분배 우선순위를 다시 계산하시겠습니까?')) {
+      console.log('우선순위 계산 시작');
       calculatePriorityMutation.mutate();
     }
   };
@@ -161,29 +210,6 @@ const Distribution = () => {
   const players = playersData?.results || [];
   const priorities = prioritiesData?.results || [];
   const selectedSeasonData = seasons.find(s => s.id === selectedSeason);
-
-  // 아이템 종류 목록
-  const itemTypes = [
-    { value: '무기', label: '무기' },
-    { value: '모자', label: '모자' },
-    { value: '상의', label: '상의' },
-    { value: '장갑', label: '장갑' },
-    { value: '하의', label: '하의' },
-    { value: '신발', label: '신발' },
-    { value: '귀걸이', label: '귀걸이' },
-    { value: '목걸이', label: '목걸이' },
-    { value: '팔찌', label: '팔찌' },
-    { value: '반지1', label: '반지1' },
-    { value: '반지2', label: '반지2' },
-  ];
-  
-  // 아이템 타입별 우선순위 그룹화
-  const prioritiesByType = itemTypes.reduce((acc, type) => {
-    acc[type.value] = priorities
-      .filter(p => p.item_type === type.value)
-      .sort((a, b) => a.priority - b.priority);
-    return acc;
-  }, {});
   
   // 분배 계획 데이터
   const weeklyPlan = planData?.weekly_plan || [];
@@ -258,7 +284,7 @@ const Distribution = () => {
         {/* 우선순위 목록 탭 */}
         {tabValue === 0 && (
           <Box sx={{ p: 3 }}>
-            {priorities.length === 0 ? (
+            {!prioritiesData || !prioritiesData.results || prioritiesData.results.length === 0 ? (
               <Alert severity='warning'>
                 우선순위 정보가 없습니다. '우선순위 계산' 버튼을 클릭하여 생성하세요.
               </Alert>
