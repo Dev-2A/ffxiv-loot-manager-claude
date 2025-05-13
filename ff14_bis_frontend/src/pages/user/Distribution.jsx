@@ -104,13 +104,48 @@ const Distribution = () => {
     refetch: refetchPriorities
   } = useQuery({
     queryKey: ['distributionPriorities', selectedSeason],
-    queryFn: () => getDistributionPriorities({
-      season: selectedSeason,
-      page_size: 100
-    }),
+    queryFn: async () => {
+      try {
+        // 페이지네이션 처리 추가
+        let allData = { results: [], count: 0 };
+        let nextPage = null;
+        
+        // 첫 페이지 데이터 로드
+        const firstPageData = await getDistributionPriorities({
+          season: selectedSeason,
+          page_size: 100  // 한 페이지당 많은 데이터 요청
+        });
+        
+        allData.results = [...firstPageData.results];
+        allData.count = firstPageData.count;
+        nextPage = firstPageData.next;
+        
+        // 다음 페이지가 있으면 모두 로드
+        while (nextPage) {
+          // URL에서 query 파라미터 추출
+          const url = new URL(nextPage);
+          const page = url.searchParams.get('page');
+          
+          const nextPageData = await getDistributionPriorities({
+            season: selectedSeason,
+            page: page,
+            page_size: 100
+          });
+          
+          allData.results = [...allData.results, ...nextPageData.results];
+          nextPage = nextPageData.next;
+        }
+        
+        console.log('모든 우선순위 데이터 로드 완료:', allData.results.length);
+        return allData;
+      } catch (error) {
+        console.error('우선순위 데이터 로드 중 오류:', error);
+        return { results: [], count: 0 };
+      }
+    },
     enabled: !!selectedSeason,
-    staleTime: 0, // 항상 최신 데이터 사용
-    refetchOnWindowFocus: false // 창 포커스 시 재요청 방지
+    staleTime: 0,
+    refetchOnWindowFocus: false
   });
   
   // 아이템 타입별 우선순위 그룹화
@@ -121,12 +156,29 @@ const Distribution = () => {
     }
     
     console.log('우선순위 데이터 그룹화:', prioritiesData.results.length);
-    return itemTypes.reduce((acc, type) => {
-      const typeData = prioritiesData.results.filter(p => p.item_type === type.value);
-      console.log(`타입 ${type.value}의 데이터:`, typeData.length);
-      acc[type.value] = typeData.sort((a, b) => a.priority - b.priority);
+    
+    // 모든 아이템 타입에 대해 빈 배열로 초기화
+    const result = itemTypes.reduce((acc, type) => {
+      acc[type.value] = [];
       return acc;
     }, {});
+    
+    // 데이터 분류
+    prioritiesData.results.forEach(item => {
+      if (result[item.item_type]) {
+        result[item.item_type].push(item);
+      } else {
+        console.warn(`알 수 없는 아이템 타입: ${item.item_type}`);
+      }
+    });
+    
+    // 각 타입별 우선순위로 정렬
+    Object.keys(result).forEach(type => {
+      result[type].sort((a, b) => a.priority - b.priority);
+      console.log(`타입 ${type}의 데이터:`, result[type].length);
+    });
+    
+    return result;
   }, [prioritiesData, itemTypes]);
 
   // 디버깅용 useEffect
@@ -144,8 +196,18 @@ const Distribution = () => {
     error: planError
   } = useQuery({
     queryKey: ['distributionPlan', selectedSeason, weeksForPlan],
-    queryFn: () => generateDistributionPlan(selectedSeason, weeksForPlan),
-    enabled: !!selectedSeason && tabValue === 1 // 분배 계획 탭일 때만 실행
+    queryFn: async () => {
+      try {
+        const response = await generateDistributionPlan(selectedSeason, weeksForPlan);
+        console.log('분배 계획 데이터:', response); // 데이터 확인용 로그
+        return response;
+      } catch (error) {
+        console.error('분배 계획 로드 오류:', error);
+        throw error;
+      }
+    },
+    enabled: !!selectedSeason && tabValue === 1, // 분배 계획 탭일 때만 실행
+    retry: 1 // 실패 시 1번만 재시도
   });
 
   // 분배 우선순위 계산 mutation
@@ -212,8 +274,8 @@ const Distribution = () => {
   const selectedSeasonData = seasons.find(s => s.id === selectedSeason);
   
   // 분배 계획 데이터
-  const weeklyPlan = planData?.weekly_plan || [];
-  const playerAcquisitions = planData?.player_acquisitions || {};
+  const weeklyPlan = planData && planData.weekly_plan ? planData.weekly_plan : [];
+  const playerAcquisitions = planData && planData.player_acquisitions ? planData.player_acquisitions : {};
 
   return (
     <Box>
