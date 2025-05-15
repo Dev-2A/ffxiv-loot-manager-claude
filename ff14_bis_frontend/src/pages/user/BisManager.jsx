@@ -338,6 +338,22 @@ const BisManager = () => {
 
   // 아이템 추가 핸들러
   const handleAddItem = (itemId) => {
+    const selectedItem = items.find(item => item.id === itemId);
+  
+    // 반지 유효성 검사
+    if (selectedSlot === '반지1' || selectedSlot === '반지2') {
+      // 제작템이 아닌 영웅 레이드 반지의 경우, 다른 반지 슬롯에 같은 아이템이 있는지 확인
+      if (selectedItem.source === '영웅레이드템') {
+        const otherRingSlot = selectedSlot === '반지1' ? '반지2' : '반지1';
+        const otherRingItem = bisSetDetail?.items?.find(item => item.slot === otherRingSlot)?.item;
+        
+        if (otherRingItem && otherRingItem.id === itemId) {
+          alert('영웅 레이드 반지는 반지1과 반지2에 동일한 아이템을 착용할 수 없습니다. 다른 아이템을 선택해주세요.');
+          return;
+        }
+      }
+    }
+
     addItemToBisSetMutation.mutate({
       bisSetId: selectedBisSet,
       itemId,

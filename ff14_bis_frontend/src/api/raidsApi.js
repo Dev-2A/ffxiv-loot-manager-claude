@@ -46,7 +46,10 @@ export const createItemAcquisition = async (itemAcquisitionData) => {
 export const calculateDistributionPriority = async (seasonId) => {
     console.log(`우선순위 계산 요청: seasonId=${seasonId}`);
     try {
-        const response = await api.post('/distribution-priorities/calculate/', { season: seasonId });
+        const response = await api.post('/distribution-priorities/calculate/', {
+            season: seasonId,
+            handle_rings: true // 반지 특별 처리 플래그
+        });
         console.log('우선순위 계산 응답:', response.data);
         return response.data;
     } catch (error) {

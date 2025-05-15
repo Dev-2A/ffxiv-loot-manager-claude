@@ -74,7 +74,7 @@ const Distribution = () => {
 
   // 주간 획득 가능 아이템 (기본 영웅 레이드 4층 구조)
   const weekly_items = {
-    1: ['귀걸이', '목걸이', '팔찌', '반지1', '반지2'],  // 1층 드랍
+    1: ['귀걸이', '목걸이', '팔찌', '반지'],  // 1층 드랍
     2: ['모자', '장갑', '신발'],  // 2층 드랍
     3: ['상의', '하의'],  // 3층 드랍
     4: ['무기']  // 4층 드랍
@@ -737,10 +737,15 @@ const Distribution = () => {
                                       {itemTypes.filter(type => {
                                         // 해당 층에 맞는 아이템 타입만 표시
                                         const floorItems = weekly_items[parseInt(floor)] || [];
+                                        // 반지 아이템의 경우 특별 처리
+                                        if (floorItems.includes('반지')) {
+                                          return type.value === '반지1' || type.value === '반지2';
+                                        }
                                         return floorItems.includes(type.value);
                                       }).map(type => (
                                         <MenuItem key={type.value} value={type.value}>
                                           {type.label}
+                                          {(type.value === '반지1' || type.value === '반지2') && ' (영웅 레이드 반지)'}
                                         </MenuItem>
                                       ))}
                                     </Select>

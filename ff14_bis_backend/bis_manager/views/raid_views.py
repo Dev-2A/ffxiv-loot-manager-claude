@@ -59,11 +59,12 @@ class DistributionPriorityViewSet(viewsets.ModelViewSet):
     def calculate(self, request):
         """우선순위 분배 계산 API"""
         season_id = request.data.get('season')
+        handle_rings = request.data.get('handle_rings', True) # 반지 특별 처리 여부
         
         if not season_id:
             return Response({'error': '시즌 ID를 입력해주세요.'}, status=status.HTTP_400_BAD_REQUEST)
         
-        logger.info(f"우선순위 계산 요청: season_id={season_id}")
+        logger.info(f"우선순위 계산 요청: season_id={season_id}, handle_rings={handle_rings}")
         
         # 분배 서비스 호출
         result = DistributionService.calculate_priority_for_season(season_id)

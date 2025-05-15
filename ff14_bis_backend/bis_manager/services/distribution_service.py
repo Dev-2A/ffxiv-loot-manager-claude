@@ -15,7 +15,7 @@ class DistributionService:
     """아이템 분배 우선순위 계산을 위한 서비스 클래스"""
     
     @staticmethod
-    def calculate_priority_for_season(season_id):
+    def calculate_priority_for_season(season_id, handle_rings=True):
         """시즌의 모든 플레이어에 대한 아이템 분배 우선순위 계산"""
         try:
             logger.info(f"===== 분배 우선순위 계산 시작: 시즌 ID={season_id} =====")
@@ -123,6 +123,13 @@ class DistributionService:
             priorities = DistributionService._calculate_item_type_priorities(player_resources)
             logger.info(f"우선순위 계산 결과: {len(priorities)} 개의 아이템 타입에 대한 우선순위 생성")
             
+            # 반지 우선순위 특별 처리
+            if handle_rings:
+                #반지1과 반지2 우선순위 통합
+                # 두 슬롯 중 하나라도 레이드 반지가 필요한 플레이어에 대한 우선순위 계산
+                ring_priorities = DistributionService._calculate_combined_ring_priorities(player_resources)
+                priorities['반지'] = ring_priorities
+            
             # 기존 우선순위 데이터 삭제 후 새로 생성
             DistributionPriority.objects.filter(season=season).delete()
             logger.info(f"기존 우선순위 데이터 삭제 완료")
@@ -180,6 +187,28 @@ class DistributionService:
                 'success': False,
                 'error': f'우선순위 계산 중 오류가 발생했습니다: {str(e)}'
             }
+    
+    @staticmethod
+    def _calculate_combined_ring_priorities(player_resources):
+        """반지1과 반지2를 통합한 우선순위 계산"""
+        # 플레이어별로 반지1과 반지2 중 더 높은 우선순위를 가진 것을 선택
+        combined_priorities = []
+        
+        for p_id, data in player_resources.items():
+            ring1_cost = data['items'].get('반지1', {}).get('cost', 0)
+            ring2_cost = data['items'].get('반지2', {}).get('cost', 0)
+            
+            # 두 반지 중 비용이 더 높은 것 선택 (레이드 반지가 필요한 슬롯)
+            max_ring_cost = max(ring1_cost, ring2_cost)
+            
+            if max_ring_cost > 0: #레이드 반지가 필요한 경우만 포함
+                combined_priorities.append((p_id, max_ring_cost))
+        
+        # 비용에 따라 정렬 (비용이 높을수록 우선순위 높음)
+        sorted_priorities = sorted(combined_priorities, key=lambda x: x[1], reverse=True)
+        
+        # 플레이어 ID만 추출하여 우선순위 리스트 생성
+        return [p_id for p_id, _ in sorted_priorities]
     
     @staticmethod
     def _calculate_item_type_priorities(player_resources):

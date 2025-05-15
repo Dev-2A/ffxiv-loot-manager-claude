@@ -47,6 +47,14 @@ export const JOB_TYPES = [
     { value: '반지1', label: '반지1' },
     { value: '반지2', label: '반지2' },
   ];
+
+  // 레이드 아이템 종류 (1층 아이템용)
+  export const RAID_ITEM_TYPES = [
+    { value: '귀걸이', label: '귀걸이' },
+    { value: '목걸이', label: '목걸이' },
+    { value: '팔찌', label: '팔찌' },
+    { value: '반지', label: '반지' },
+  ]
   
   // 아이템 출처
   export const ITEM_SOURCES = [

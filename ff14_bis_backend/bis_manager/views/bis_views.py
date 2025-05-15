@@ -48,6 +48,26 @@ class BisSetViewSet(viewsets.ModelViewSet):
         
         try:
             item = Item.objects.get(pk=item_id)
+            
+            #반지 유효성 검사 추가
+            if slot in ['반지1', '반지2'] and item.source == '영웅레이드템':
+                # 다른 반지 슬롯 확인
+                other_ring_slot = '반지1' if slot == '반지2' else '반지2'
+                try:
+                    # 다른 반지 슬롯에 같은 아이템이 있는지 확인
+                    other_ring_item = BisItem.objects.get(
+                        bis_set=bis_set,
+                        slot=other_ring_slot
+                    )
+                    if other_ring_item.item_id == item_id:
+                        return Response(
+                            {'error': '동일한 레이드 반지 2개를 착용할 수 없습니다.'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                except BisItem.DoesNotExist:
+                    # 다른 슬롯에 아이템이 없으면 검사 통과
+                    pass
+            
         except Item.DoesNotExist:
             return Response({'error': '존재하지 않는 아이템입니다.'}, status=status.HTTP_400_BAD_REQUEST)
         
