@@ -88,3 +88,24 @@ export const getDistributionPriorities = async (params = {}) => {
         throw error;
     }
 };
+
+// 분배 계획 수동 업데이트
+export const updateDistributionPlan = async (seasonId, week, floor, planData) => {
+    try {
+        console.log(`분배 계획 수동 업데이트: seasonId=${seasonId}, week=${week}, floor=${floor}`);
+        console.log('계획 데이터:', planData);
+
+        const response = await api.post('/distribution-priorities/update_distribution_plan/', {
+            season: seasonId,
+            week,
+            floor,
+            plan_data: planData
+        });
+
+        console.log('분배 계획 업데이트 응답:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('분배 계획 업데이트 오류:', error);
+        throw error; // 에러를 throw하여 mutation에서 처리할 수 있도록 함
+    }
+};

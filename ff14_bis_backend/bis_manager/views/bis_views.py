@@ -134,3 +134,40 @@ class BisItemViewSet(viewsets.ModelViewSet):
             'status': '마테리쟈가 추가되었습니다.',
             'created': created
         })
+    
+    @action(detail=True, methods=['POST'])
+    def remove_all_materias(self, request, pk=None):
+        """비스 아이템의 모든 마테리쟈 제거"""
+        bis_item = self.get_object()
+        
+        # 로깅 추가
+        logger.info(f"remove_all_materias 호출: BisItem ID={bis_item.id}")
+        
+        # 권한 체크 - 본인 캐릭터의 비스 세트인지 확인
+        if not request.user.is_staff and not request.user.user_type == 'admin':
+            if not request.user.nickname or request.user.nickname != bis_item.bis_set.player.nickname:
+                return Response(
+                    {'error': '본인의 캐릭터 비스 세트만 수정할 수 있습니다.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+        try:
+            # 트랜잭션으로 처리하여 일관성 유지
+            with transaction.atomic():
+                # 해당 BisItem에 연결된 모든 마테리쟈 삭제
+                materias_count = bis_item.materias.count()
+                bis_item.materias.all().delete()
+                
+                logger.info(f"마테리쟈 {materias_count}개 삭제 완료: BisItem ID={bis_item.id}")
+                
+                return Response({
+                    'status': '성공',
+                    'message': f'{materias_count}개의 마테리쟈가 성공적으로 제거되었습니다.',
+                    'removed_count': materias_count
+                })
+        except Exception as e:
+            logger.error(f"마테리쟈 제거 중 오류 발생: {str(e)}")
+            return Response(
+                {'error': f'마테리쟈 제거 중 오류가 발생했습니다: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

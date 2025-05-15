@@ -12,7 +12,7 @@ class MateriaSerializer(serializers.ModelSerializer):
 class BisItemSerializer(serializers.ModelSerializer):
     item = ItemSerializer(read_only=True)
     item_id = serializers.PrimaryKeyRelatedField(
-        queryset=Materia.objects.all(),
+        queryset=BisItem.objects.all(),
         source='item',
         write_only=True
     )
@@ -21,7 +21,7 @@ class BisItemSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = BisItem
-        fields = ['id', 'slot', 'slot_display', 'item', 'item_id', 'materias']
+        fields = ['id', 'slot', 'slot_display', 'item', 'item_id', 'materias', 'bis_set']
 
 class BisSetSerializer(serializers.ModelSerializer):
     items = BisItemSerializer(many=True, read_only=True)

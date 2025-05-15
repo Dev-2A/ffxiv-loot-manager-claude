@@ -216,7 +216,7 @@ class DistributionService:
     
     @staticmethod
     def generate_weekly_distribution_plan(season_id, weeks=12):
-        """주간 분배 계획 생성 (최대한 공평하게 분배)"""
+        """주간 분배 계획 생성 (8주차까지 모든 플레이어가 모든 부위 1회씩 획득하도록)"""
         try:
             logger.info(f"주간 분배 계획 생성 시작: 시즌 ID={season_id}, 주차={weeks}")
             
@@ -237,6 +237,12 @@ class DistributionService:
                 all_priorities = DistributionPriority.objects.filter(season=season).order_by('item_type', 'priority')
                 logger.info(f"새로 계산된 우선순위 데이터: {all_priorities.count()}개")
             
+            # 참여 플레이어 목록 가져오기
+            player_ids = list(set(all_priorities.values_list('player_id', flat=True)))
+            players = Player.objects.filter(id__in=player_ids)
+            
+            logger.info(f"분배 참여 플레이어 수: {len(player_ids)}")
+            
             # 아이템 타입별 우선순위 정렬
             priorities_by_type = defaultdict(list)
             for priority in all_priorities:
@@ -256,28 +262,43 @@ class DistributionService:
                 4: ['무기']  # 4층 드랍
             }
             
+            # 각 층별 아이템 개수 계산
+            floor_item_counts = {floor: len(items) for floor, items in weekly_items.items()}
+            total_items_per_week = sum(floor_item_counts.values())
+            
             # 주간 분배 계획
             weekly_plan = []
             
-            # 플레이어별 아이템 획득 횟수 추적
-            player_acquisitions = defaultdict(int)
+            # 총 아이템 개수
+            total_item_types = sum(len(items) for items in weekly_items.values())
             
-            # 분배 수행할 플레이어 ID 목록 (우선순위 데이터에서 추출)
-            player_ids = set()
-            for priorities in priorities_by_type.values():
-                for p in priorities:
-                    player_ids.add(p['player_id'])
+            # 플레이어별 아이템 획득 기록 및 개수 (플레이어ID: {아이템타입: 획득여부})
+            player_item_records = {player_id: {item_type: False for item_type in priorities_by_type.keys()} for player_id in player_ids}
+            player_item_counts = {player_id: 0 for player_id in player_ids}
             
-            logger.info(f"분배 대상 플레이어 수: {len(player_ids)}")
+            # 8주차까지 균등 분배 계획 생성
+            first_eight_weeks = min(8, weeks)
             
-            # 주별 분배 계획 생성
-            for week in range(1, weeks + 1):
-                logger.info(f"==== {week}주차 분배 계획 생성 ====")
+            # 8주차까지 분배할 수 있는 총 아이템 개수
+            total_items_first_eight_weeks = first_eight_weeks * total_items_per_week
+            
+            # 플레이어별 목표 아이템 개수 (균등 분배를 위해)
+            target_items_per_player = total_items_first_eight_weeks // len(player_ids)
+            if target_items_per_player > total_item_types:
+                target_items_per_player = total_item_types  # 최대 모든 부위 1회씩만 획득 가능
+            
+            logger.info(f"8주차까지 플레이어별 목표 아이템 개수: {target_items_per_player}")
+            
+            for week in range(1, first_eight_weeks + 1):
+                logger.info(f"==== {week}주차 분배 계획 생성 (균등 분배) ====")
                 
                 week_plan = {
                     'week': week,
                     'floors': {}
                 }
+                
+                # 플레이어별 주간 획득 아이템 개수
+                weekly_player_acquisitions = {player_id: 0 for player_id in player_ids}
                 
                 # 각 층별로 아이템 분배
                 for floor, item_types in weekly_items.items():
@@ -294,20 +315,29 @@ class DistributionService:
                             logger.warning(f"아이템 타입 {item_type}에 대한 우선순위 데이터가 없습니다.")
                             continue
                         
-                        # 이미 많은 아이템을 획득한 플레이어 우선순위 조정
-                        adjusted_priorities = DistributionService._adjust_priorities_for_fairness(
-                            type_priorities, 
-                            player_acquisitions
-                        )
+                        # 아직 해당 타입의 아이템을 획득하지 않은 플레이어 중
+                        # 전체 획득 아이템 개수가 가장 적고, 우선순위가 높은 플레이어에게 분배
+                        eligible_players = [
+                            p for p in type_priorities 
+                            if not player_item_records[p['player_id']][item_type]  # 해당 타입의 아이템을 아직 획득하지 않은 플레이어
+                        ]
                         
-                        # 가장 높은 우선순위 플레이어에게 아이템 분배
-                        if adjusted_priorities:
-                            winner = adjusted_priorities[0]
+                        if eligible_players:
+                            # 전체 획득 아이템 개수가 적은 순으로 정렬
+                            eligible_players.sort(key=lambda x: (
+                                player_item_counts[x['player_id']],  # 1차: 총 획득 개수가 적은 순
+                                weekly_player_acquisitions[x['player_id']],  # 2차: 이번 주 획득 개수가 적은 순
+                                x['priority']  # 3차: 원래 우선순위가 높은 순
+                            ))
+                            
+                            winner = eligible_players[0]
                             player_id = winner['player_id']
                             player_name = winner['player_name']
                             
-                            # 플레이어 획득 횟수 증가
-                            player_acquisitions[player_id] += 1
+                            # 플레이어 아이템 획득 기록 업데이트
+                            player_item_records[player_id][item_type] = True
+                            player_item_counts[player_id] += 1
+                            weekly_player_acquisitions[player_id] += 1
                             
                             floor_plan.append({
                                 'item_type': item_type,
@@ -316,28 +346,100 @@ class DistributionService:
                                 'original_priority': winner['priority']
                             })
                             
-                            logger.info(f"분배 결과: {item_type} -> {player_name} (원래 우선순위: {winner['priority']})")
+                            logger.info(f"분배 결과: {item_type} -> {player_name} (원래 우선순위: {winner['priority']}, 총 획득 개수: {player_item_counts[player_id]})")
+                        else:
+                            # 모든 플레이어가 이미 해당 타입의 아이템을 획득한 경우
+                            # 원래 우선순위에 따라 분배 (단, 총 획득 개수를 고려)
+                            adjusted_priorities = []
+                            
+                            for p in type_priorities:
+                                # 이미 목표 아이템 개수를 초과한 플레이어는 제외
+                                if player_item_counts[p['player_id']] >= target_items_per_player:
+                                    continue
+                                
+                                adjusted_priorities.append(p)
+                            
+                            if adjusted_priorities:
+                                # 전체 획득 아이템 개수가 적은 순으로 정렬
+                                adjusted_priorities.sort(key=lambda x: (
+                                    player_item_counts[x['player_id']],  # 1차: 총 획득 개수가 적은 순
+                                    weekly_player_acquisitions[x['player_id']],  # 2차: 이번 주 획득 개수가 적은 순
+                                    x['priority']  # 3차: 원래 우선순위가 높은 순
+                                ))
+                                
+                                winner = adjusted_priorities[0]
+                                player_id = winner['player_id']
+                                player_name = winner['player_name']
+                                
+                                # 플레이어 아이템 획득 기록 업데이트
+                                player_item_counts[player_id] += 1
+                                weekly_player_acquisitions[player_id] += 1
+                                
+                                floor_plan.append({
+                                    'item_type': item_type,
+                                    'player_id': player_id,
+                                    'player_name': player_name,
+                                    'original_priority': winner['priority'],
+                                    'note': '이미 획득한 아이템 타입'
+                                })
+                                
+                                logger.info(f"분배 결과(중복 아이템): {item_type} -> {player_name} (총 획득 개수: {player_item_counts[player_id]})")
                     
                     week_plan['floors'][floor] = floor_plan
                     logger.info(f"{floor}층 분배 완료: {len(floor_plan)}개 아이템 분배됨")
                 
                 weekly_plan.append(week_plan)
                 logger.info(f"{week}주차 분배 계획 생성 완료")
+                logger.info(f"플레이어별 획득 아이템 현황: {dict(player_item_counts)}")
             
-            logger.info(f"총 {weeks}주차 분배 계획 생성 완료")
-            logger.info(f"플레이어별 획득 수량: {dict(player_acquisitions)}")
+            # 9주차 이후는 별도 로직 없이 빈 계획만 생성 (사용자가 직접 입력할 수 있도록)
+            if weeks > 8:
+                for week in range(9, weeks + 1):
+                    logger.info(f"==== {week}주차 빈 분배 계획 생성 ====")
+                    
+                    week_plan = {
+                        'week': week,
+                        'floors': {},
+                        'manual_input': True  # 수동 입력 가능 표시
+                    }
+                    
+                    # 각 층별로 빈 계획 생성
+                    for floor, item_types in weekly_items.items():
+                        week_plan['floors'][floor] = []
+                    
+                    weekly_plan.append(week_plan)
+                    logger.info(f"{week}주차 빈 분배 계획 생성 완료")
             
+            # 미획득 아이템 확인 (8주차까지 모든 플레이어가 모든 타입의 아이템을 획득했는지)
+            missing_items = {}
+            if weeks >= 8:
+                for player_id, item_records in player_item_records.items():
+                    missing = [item_type for item_type, acquired in item_records.items() if not acquired]
+                    if missing:
+                        player = Player.objects.get(id=player_id)
+                        missing_items[player.nickname] = missing
+                        logger.warning(f"플레이어 {player.nickname}(ID:{player_id})의 미획득 아이템: {missing}")
+            
+            # 플레이어별 최종 아이템 획득 현황 집계
             return {
                 'success': True,
                 'weekly_plan': weekly_plan,
                 'player_acquisitions': {
                     player_id: count 
                     for player_id, count in sorted(
-                        player_acquisitions.items(), 
+                        player_item_counts.items(), 
                         key=lambda x: x[1], 
                         reverse=True
                     )
-                }
+                },
+                'player_item_records': {
+                    player_id: {
+                        'items': [item_type for item_type, acquired in items.items() if acquired],
+                        'missing': [item_type for item_type, acquired in items.items() if not acquired]
+                    } for player_id, items in player_item_records.items()
+                },
+                'missing_items': missing_items,  # 8주차까지 미획득 아이템 정보
+                'target_items_per_player': target_items_per_player  # 플레이어별 목표 아이템 개수
             }
             
         except Season.DoesNotExist:
@@ -353,7 +455,7 @@ class DistributionService:
                 'success': False,
                 'error': f'분배 계획 생성 중 오류가 발생했습니다: {str(e)}'
             }
-    
+        
     @staticmethod
     def _adjust_priorities_for_fairness(type_priorities, player_acquisitions):
         """공정한 분배를 위해 우선순위 재조정"""

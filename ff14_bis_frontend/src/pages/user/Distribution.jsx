@@ -19,11 +19,8 @@ import {
   TableRow,
   Chip,
   Alert,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemAvatar,
-  Avatar,
+  IconButton,
+  LinearProgress,
   FormControl,
   InputLabel,
   Select,
@@ -42,11 +39,23 @@ import SeasonSelector from '../../components/common/SeasonSelector';
 import { getJobTypeColor } from '../../utils/helpers';
 import JobIcon from '../../components/common/JobIcon';
 
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import SaveIcon from '@mui/icons-material/Save';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { updateDistributionPlan } from '../../api/raidsApi';
+
 const Distribution = () => {
   const queryClient = useQueryClient();
   const [selectedSeason, setSelectedSeason] = useState(null);
   const [tabValue, setTabValue] = useState(0);
   const [weeksForPlan, setWeeksForPlan] = useState(12);
+  const [editingWeek, setEditingWeek] = useState(null);
+  const [editingFloor, setEditingFloor] = useState(null);
+  const [editingPlanData, setEditingPlanData] = useState([]);
+  const [selectedPlayerForItem, setSelectedPlayerForItem] = useState(null);
+  const [selectedItemType, setSelectedItemType] = useState(null);
+  const [planData, setPlanData] = useState(null);
 
   // 아이템 종류 목록 - itemTypes를 먼저 선언
   const itemTypes = [
@@ -62,6 +71,14 @@ const Distribution = () => {
     { value: '반지1', label: '반지1' },
     { value: '반지2', label: '반지2' },
   ];
+
+  // 주간 획득 가능 아이템 (기본 영웅 레이드 4층 구조)
+  const weekly_items = {
+    1: ['귀걸이', '목걸이', '팔찌', '반지1', '반지2'],  // 1층 드랍
+    2: ['모자', '장갑', '신발'],  // 2층 드랍
+    3: ['상의', '하의'],  // 3층 드랍
+    4: ['무기']  // 4층 드랍
+  };
 
   // 시즌 정보 가져오기
   const {
@@ -191,7 +208,7 @@ const Distribution = () => {
 
   // 분배 계획 가져오기
   const {
-    data: planData,
+    data: initialPlanData,
     isLoading: isLoadingPlan,
     error: planError
   } = useQuery({
@@ -200,6 +217,7 @@ const Distribution = () => {
       try {
         const response = await generateDistributionPlan(selectedSeason, weeksForPlan);
         console.log('분배 계획 데이터:', response); // 데이터 확인용 로그
+        setPlanData(response); // 상태 업데이트
         return response;
       } catch (error) {
         console.error('분배 계획 로드 오류:', error);
@@ -238,6 +256,35 @@ const Distribution = () => {
     }
   });
 
+  const updatePlanMutation = useMutation({
+    mutationFn: ({ seasonId, week, floor, planData }) =>
+      updateDistributionPlan(seasonId, week, floor, planData),
+    onSuccess: (data) => {
+      console.log('분배 계획 업데이트 성공:', data);
+
+      // .새 데이터 상태 업데이트 (캐시 무효화 대신)
+      if (data.updated_plan) {
+        // 전체 계획 데이터를 직접 업데이트
+        setPlanData(data.updated_plan);
+      } else {
+        // 캐시 무효화 후 다시 로드
+        queryClient.invalidateQueries(['distributionPlan', selectedSeason, weeksForPlan])
+      }
+
+      // 편집 모드 종료
+      setEditingWeek(null);
+      setEditingFloor(null);
+      setEditingPlanData([]);
+
+      // 성공 메시지
+      alert('분배 계획이 성공적으로 업데이트되었습니다.');
+    },
+    onError: (error) => {
+      console.error('분배 계획 업데이트 실패:', error);
+      alert(`분배 계획 업데이트 중 오류가 발생했습니다: ${error.message}`);
+    }
+  });
+
   // 탭 변경 핸들러
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -256,6 +303,99 @@ const Distribution = () => {
     if (window.confirm(`${weeksForPlan}주 분배 계획을 생성하시겠습니까?`)) {
       generatePlanMutation.mutate();
     }
+  };
+
+  // 플레이어 선택 핸들러
+  const handlePlayerSelect = (playerId) => {
+    if (!editingWeek || !editingFloor || !selectedItemType) {
+      console.error('편집 정보가 없습니다:', { editingWeek, editingFloor, selectedItemType });
+      return;
+    }
+    
+    // 선택된 플레이어 찾기
+    const player = players.find(p => p.id === playerId);
+    if (!player) {
+      console.error('선택된 플레이어를 찾을 수 없습니다:', playerId);
+      return;
+    }
+    
+    console.log('플레이어 선택:', player.nickname, '아이템:', selectedItemType);
+    
+    // 새 아이템 객체 생성
+    const newItem = {
+      item_type: selectedItemType,
+      player_id: playerId,
+      player_name: player.nickname,
+      original_priority: 0,  // 수동 입력이므로 우선순위는 0으로 설정
+      manual: true  // 수동 입력 표시
+    };
+    
+    // 이미 해당 아이템 타입이 있는지 확인
+    const existingIndex = editingPlanData.findIndex(item => item.item_type === selectedItemType);
+    
+    let updatedPlanData;
+    if (existingIndex >= 0) {
+      // 이미 있으면 해당 항목 업데이트
+      updatedPlanData = [...editingPlanData];
+      updatedPlanData[existingIndex] = newItem;
+    } else {
+      // 없으면 새로 추가
+      updatedPlanData = [...editingPlanData, newItem];
+    }
+    
+    console.log('업데이트된 계획 데이터:', updatedPlanData);
+    setEditingPlanData(updatedPlanData);
+    
+    // 선택 초기화
+    setSelectedPlayerForItem(null);
+    setSelectedItemType(null);
+  };
+  
+  // 아이템 삭제 핸들러
+  const handleRemoveItem = (itemType) => {
+    if (editingWeek && editingFloor) {
+      const updatedPlanData = editingPlanData.filter(item => item.item_type !== itemType);
+      setEditingPlanData(updatedPlanData);
+    }
+  };
+
+  // 편집 모드 시작 핸들러
+  const handleStartEditing = (week, floor, existingPlanData = []) => {
+    setEditingWeek(week);
+    setEditingFloor(floor);
+    setEditingPlanData([...existingPlanData]);
+  };
+
+  // 편집 취소 핸들러
+  const handleCancelEditing = () => {
+    setEditingWeek(null);
+    setEditingFloor(null);
+    setEditingPlanData([]);
+    setSelectedPlayerForItem(null);
+    setSelectedItemType(null);
+  };
+
+  // 분배 계획 저장 핸들러
+  const handleSavePlan = () => {
+    if (!editingWeek || !editingFloor) {
+      console.error('편집 정보가 없습니다:', { editingWeek, editingFloor });
+      return;
+    }
+
+    if (!editingPlanData || editingPlanData.length === 0) {
+      // 빈 데이터 허용 (기존 항목 삭제 가능)
+      console.log('저장할 계획 데이터가 없습니다.');
+    } else {
+      console.log('저장할 계획 데이터:', editingPlanData);
+    }
+
+    // 저장 요청 전송
+    updatePlanMutation.mutate({
+      seasonId: selectedSeason,
+      week: editingWeek,
+      floor: editingFloor,
+      planData: editingPlanData
+    });
   };
 
   // 로딩 상태 확인
@@ -485,72 +625,376 @@ const Distribution = () => {
                 {/* 주간 분배 계획 */}
                 {weeklyPlan.map((week) => (
                   <Paper key={week.week} variant='outlined' sx={{ mb: 3 }}>
-                    <Box sx={{ p: 2, bgcolor: 'primary.main', color: 'white' }}>
-                      <Typography variant='h6'>{week.week}주차</Typography>
+                    <Box sx={{ 
+                      p: 2, 
+                      bgcolor: week.week <= 8 ? 'primary.main' : 'secondary.main', 
+                      color: 'white',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <Typography variant='h6'>
+                        {week.week}주차 
+                        {week.week <= 8 ? (
+                          <Chip 
+                            label="자동 분배 적용" 
+                            size="small" 
+                            sx={{ ml: 1, bgcolor: 'white', color: 'primary.main' }} 
+                          />
+                        ) : (
+                          <Chip 
+                            label="수동 입력 가능" 
+                            size="small" 
+                            sx={{ ml: 1, bgcolor: 'white', color: 'secondary.main' }} 
+                          />
+                        )}
+                      </Typography>
+                      {week.week > 8 && (
+                        <Box>
+                          <Button 
+                            variant="contained"
+                            size="small"
+                            startIcon={<EditIcon />}
+                            sx={{ bgcolor: 'white', color: 'secondary.main' }}
+                            onClick={() => handleGeneratePlan()}
+                          >
+                            계획 갱신
+                          </Button>
+                        </Box>
+                      )}
                     </Box>
-                    <TableContainer>
-                      <Table>
-                        <TableHead>
-                          <TableRow>
-                            <TableCell>층</TableCell>
-                            <TableCell>아이템</TableCell>
-                            <TableCell>플레이어</TableCell>
-                            <TableCell>우선순위</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {Object.entries(week.floors).map(([floor, items]) => (
-                            items.map((item, index) => {
-                              const player = players.find(p => p.id === item.player_id);
-                              return (
-                                <TableRow key={`${floor}-${index}`}>
-                                  {index === 0 && (
-                                    <TableCell
-                                      rowSpan={items.length}
-                                      sx={{
-                                        fontWeight: 'bold',
-                                        backgroundColor: 'action.hover'
-                                      }}
-                                    >
-                                      {floor}층
-                                    </TableCell>
-                                  )}
-                                  <TableCell>{item.item_type}</TableCell>
-                                  <TableCell>
-                                    {player ? (
-                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                        <JobIcon job={player.job} size={24} />
-                                        <Typography variant='body2' sx={{ ml: 1.5 }}>
-                                          {item.player_name}
-                                        </Typography>
-                                      </Box>
-                                    ) : (
-                                      item.player_name
-                                    )}
-                                  </TableCell>
-                                  <TableCell>
-                                    <Chip
-                                      label={`${item.original_priority}순위`}
-                                      size="small"
-                                      color={item.original_priority <= 2 ? "primary" : "default"}
-                                    />
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })
-                          ))}
-                          {Object.keys(week.floors).length === 0 && (
-                            <TableRow>
-                              <TableCell colSpan={4} align='center'>
-                                이번 주에는 분배 계획이 없습니다.
-                              </TableCell>
-                            </TableRow>
+
+                    {/* 각 층별 아이템 분배 */}
+                    {Object.entries(week.floors).map(([floor, items]) => (
+                      <Box key={floor} sx={{ mb: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1, mx: 2, mt: 2 }}>
+                        <Box sx={{ 
+                          p: 1.5, 
+                          bgcolor: 'action.hover',
+                          borderBottom: '1px solid',
+                          borderColor: 'divider',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}>
+                          <Typography variant="subtitle1" fontWeight="bold">
+                            {floor}층
+                          </Typography>
+                          
+                          {/* 9주차 이후 편집 버튼 */}
+                          {week.week > 8 && (
+                            editingWeek === week.week && editingFloor === floor ? (
+                              <Box>
+                                <Button 
+                                  variant="contained" 
+                                  size="small" 
+                                  color="primary"
+                                  startIcon={<SaveIcon />}
+                                  onClick={handleSavePlan}
+                                  sx={{ mr: 1 }}
+                                  disabled={updatePlanMutation.isLoading}
+                                >
+                                  저장
+                                </Button>
+                                <Button 
+                                  variant="outlined" 
+                                  size="small"
+                                  onClick={handleCancelEditing}
+                                  disabled={updatePlanMutation.isLoading}
+                                >
+                                  취소
+                                </Button>
+                              </Box>
+                            ) : (
+                              <Button 
+                                variant="outlined" 
+                                size="small" 
+                                startIcon={<EditIcon />}
+                                onClick={() => handleStartEditing(week.week, floor, items)}
+                              >
+                                편집
+                              </Button>
+                            )
                           )}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
+                        </Box>
+
+                        {/* 편집 모드일 때 */}
+                        {editingWeek === week.week && editingFloor === floor ? (
+                          <Box sx={{ p: 2 }}>
+                            {/* 아이템 타입 선택 */}
+                            <Box sx={{ mb: 2 }}>
+                              <Typography variant="subtitle2" gutterBottom>
+                                아이템 추가
+                              </Typography>
+                              <Grid container spacing={2} alignItems="center">
+                                <Grid item xs={12} sm={5}>
+                                  <FormControl fullWidth size="small">
+                                    <InputLabel>아이템 타입</InputLabel>
+                                    <Select
+                                      value={selectedItemType || ''}
+                                      onChange={(e) => setSelectedItemType(e.target.value)}
+                                      label="아이템 타입"
+                                    >
+                                      {itemTypes.filter(type => {
+                                        // 해당 층에 맞는 아이템 타입만 표시
+                                        const floorItems = weekly_items[parseInt(floor)] || [];
+                                        return floorItems.includes(type.value);
+                                      }).map(type => (
+                                        <MenuItem key={type.value} value={type.value}>
+                                          {type.label}
+                                        </MenuItem>
+                                      ))}
+                                    </Select>
+                                  </FormControl>
+                                </Grid>
+                                <Grid item xs={12} sm={5}>
+                                  <FormControl fullWidth size="small" disabled={!selectedItemType}>
+                                    <InputLabel>플레이어</InputLabel>
+                                    <Select
+                                      value={selectedPlayerForItem || ''}
+                                      onChange={(e) => handlePlayerSelect(e.target.value)}
+                                      label="플레이어"
+                                    >
+                                      {players.map(player => (
+                                        <MenuItem key={player.id} value={player.id}>
+                                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                            <JobIcon job={player.job} size={20} />
+                                            <Typography variant="body2" sx={{ ml: 1 }}>
+                                              {player.nickname}
+                                            </Typography>
+                                          </Box>
+                                        </MenuItem>
+                                      ))}
+                                    </Select>
+                                  </FormControl>
+                                </Grid>
+                                <Grid item xs={12} sm={2}>
+                                  <Button
+                                    variant="contained"
+                                    size="small"
+                                    fullWidth
+                                    startIcon={<AddIcon />}
+                                    disabled={!selectedItemType || !selectedPlayerForItem}
+                                    onClick={() => handlePlayerSelect(selectedPlayerForItem)}
+                                  >
+                                    추가
+                                  </Button>
+                                </Grid>
+                              </Grid>
+                            </Box>
+
+                            {/* 현재 아이템 목록 */}
+                            <Typography variant="subtitle2" gutterBottom>
+                              현재 아이템 목록
+                            </Typography>
+                            {editingPlanData.length > 0 ? (
+                              <TableContainer>
+                                <Table size="small">
+                                  <TableHead>
+                                    <TableRow>
+                                      <TableCell>아이템</TableCell>
+                                      <TableCell>플레이어</TableCell>
+                                      <TableCell align="right">관리</TableCell>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {editingPlanData.map((item) => {
+                                      const player = players.find(p => p.id === item.player_id);
+                                      return (
+                                        <TableRow key={item.item_type}>
+                                          <TableCell>{item.item_type}</TableCell>
+                                          <TableCell>
+                                            {player && (
+                                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                <JobIcon job={player.job} size={24} />
+                                                <Typography variant='body2' sx={{ ml: 1.5 }}>
+                                                  {item.player_name}
+                                                </Typography>
+                                              </Box>
+                                            )}
+                                          </TableCell>
+                                          <TableCell align="right">
+                                            <IconButton
+                                              size="small"
+                                              color="error"
+                                              onClick={() => handleRemoveItem(item.item_type)}
+                                            >
+                                              <DeleteIcon fontSize="small" />
+                                            </IconButton>
+                                          </TableCell>
+                                        </TableRow>
+                                      );
+                                    })}
+                                  </TableBody>
+                                </Table>
+                              </TableContainer>
+                            ) : (
+                              <Alert severity="info" sx={{ mt: 1 }}>
+                                아직 할당된 아이템이 없습니다. 위에서 아이템을 추가하세요.
+                              </Alert>
+                            )}
+                          </Box>
+                        ) : (
+                          // 일반 모드 (보기 모드)
+                          <TableContainer>
+                            <Table size="small">
+                              <TableHead>
+                                <TableRow>
+                                  <TableCell width="20%">아이템</TableCell>
+                                  <TableCell width="50%">플레이어</TableCell>
+                                  <TableCell width="20%">우선순위</TableCell>
+                                  {week.week > 8 && <TableCell width="10%">비고</TableCell>}
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {items && items.length > 0 ? (
+                                  items.map((item, index) => {
+                                    const player = players.find(p => p.id === item.player_id);
+                                    return (
+                                      <TableRow key={`${item.item_type}-${index}`}>
+                                        <TableCell sx={{ width: "20%", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                                          {item.item_type}
+                                        </TableCell>
+                                        <TableCell sx={{ width: "50%" }}>
+                                          {player ? (
+                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                              <JobIcon job={player.job} size={24} />
+                                              <Typography variant='body2' sx={{ ml: 1.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                {item.player_name}
+                                              </Typography>
+                                            </Box>
+                                          ) : (
+                                            item.player_name
+                                          )}
+                                        </TableCell>
+                                        <TableCell>
+                                          {item.manual ? (
+                                            <Chip 
+                                              label="수동 입력" 
+                                              size="small" 
+                                              color="secondary"
+                                            />
+                                          ) : (
+                                            <Chip
+                                              label={`${item.original_priority}순위`}
+                                              size="small"
+                                              color={item.original_priority <= 2 ? "primary" : "default"}
+                                            />
+                                          )}
+                                        </TableCell>
+                                        {week.week > 8 && (
+                                          <TableCell>
+                                            {item.note && (
+                                              <Typography variant="caption" color="text.secondary">
+                                                {item.note}
+                                              </Typography>
+                                            )}
+                                          </TableCell>
+                                        )}
+                                      </TableRow>
+                                    );
+                                  })
+                                ) : (
+                                  <TableRow>
+                                    <TableCell colSpan={week.week > 8 ? 4 : 3} align='center'>
+                                      {week.week > 8 ? '아직 입력된 아이템이 없습니다.' : '이번 층에는 분배 계획이 없습니다.'}
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
+                        )}
+                      </Box>
+                    ))}
                   </Paper>
                 ))}
+
+                {/* 미획득 아이템 정보 표시 */}
+                {planData && planData.missing_items && Object.keys(planData.missing_items).length > 0 && (
+                  <Paper variant='outlined' sx={{ p: 2, mb: 3, bgcolor: 'warning.light' }}>
+                    <Typography variant='h6' gutterBottom>
+                      8주차까지 모든 아이템을 획득하지 못한 플레이어
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" paragraph>
+                      8주차까지 모든 플레이어가 모든 아이템 타입을 획득하는 것이 이상적이지만, 플레이어 수와 아이템 수의 관계로 불가능할 수 있습니다.
+                    </Typography>
+                    <Grid container spacing={2}>
+                      {Object.entries(planData.missing_items).map(([playerName, missingItems]) => (
+                        <Grid item xs={12} sm={6} md={4} key={playerName}>
+                          <Box sx={{ border: '1px solid', borderColor: 'warning.main', p: 1.5, borderRadius: 1 }}>
+                            <Typography variant='subtitle1' gutterBottom>
+                              {playerName}
+                            </Typography>
+                            <Typography variant='body2'>
+                              미획득 아이템: {missingItems.join(', ')}
+                            </Typography>
+                          </Box>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Paper>
+                )}
+
+                {/* 아이템 획득 통계 */}
+                {planData && planData.player_acquisitions && (
+                  <Paper variant='outlined' sx={{ p: 2, mb: 3 }}>
+                    <Typography variant='h6' gutterBottom>
+                      플레이어별 아이템 획득 요약
+                    </Typography>
+                    <Box sx={{ mb: 2 }}>
+                      <Alert severity="info">
+                        <Typography variant="body2">
+                          8주차까지는 각 플레이어가 동일한 부위의 아이템을 최대 1회만 획득할 수 있으며, 균등한 분배를 위해 노력합니다.
+                          {planData.target_items_per_player && (
+                            <strong> 플레이어별 목표 아이템 개수: {planData.target_items_per_player}개</strong>
+                          )}
+                        </Typography>
+                      </Alert>
+                    </Box>
+                    <Grid container spacing={2}>
+                      {Object.entries(planData.player_acquisitions).map(([playerId, count]) => {
+                        const player = players.find(p => p.id === parseInt(playerId));
+                        if (!player) return null;
+                        
+                        // 목표 개수에 대한 달성률 계산
+                        const targetCount = planData.target_items_per_player || 11; // 모든 아이템 타입 (기본값)
+                        const percentage = Math.round((count / targetCount) * 100);
+                        
+                        return (
+                          <Grid item xs={12} sm={6} md={4} lg={3} key={playerId}>
+                            <Box sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center',
+                              p: 1.5,
+                              borderRadius: 1,
+                              border: '1px solid',
+                              borderColor: 'divider'
+                            }}>
+                              <JobIcon job={player.job} size={40} />
+                              <Box sx={{ ml: 1.5, flexGrow: 1 }}>
+                                <Typography variant='body1' noWrap>
+                                  {player.nickname}
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                                  <Box sx={{ width: '100%', mr: 1 }}>
+                                    <LinearProgress 
+                                      variant="determinate" 
+                                      value={percentage > 100 ? 100 : percentage} 
+                                      color={percentage < 70 ? "error" : percentage < 90 ? "warning" : "success"}
+                                    />
+                                  </Box>
+                                  <Typography variant='caption' color='text.secondary'>
+                                    {count}/{targetCount} ({percentage}%)
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            </Box>
+                          </Grid>
+                        );
+                      })}
+                    </Grid>
+                  </Paper>
+                )}
               </>
             )}
           </Box>

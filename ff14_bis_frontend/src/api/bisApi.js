@@ -54,3 +54,9 @@ export const addMateriaToBisItem = async (bisItemId, materiaData) => {
     const response = await api.post(`/bis-items/${bisItemId}/add_materia/`, materiaData);
     return response.data;
 };
+
+// 비스 아이템의 모든 마테리쟈 제거
+export const removeAllMaterias = async (bisItemId) => {
+    const response = await api.post(`/bis-items/${bisItemId}/remove_all_materias/`);
+    return response.data;
+};

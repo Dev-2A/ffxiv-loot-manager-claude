@@ -52,6 +52,7 @@ import { calculateBisProgress } from '../../utils/helpers';
 import JobIcon from '../../components/common/JobIcon';
 import ResourceDisplay from '../../components/bis/ResourceDisplay';
 import { useAuth } from '../../contexts/AuthContext';
+import MateriaManager from '../../components/bis/MateriaManager';
 
 const BisManager = () => {
   const queryClient = useQueryClient();
@@ -684,22 +685,13 @@ const BisManager = () => {
                                       {slotItem.item.source_display} | {slotItem.item.item_level}
                                     </Typography>
 
-                                    {/* 마테리쟈 정보 표시 */}
-                                    {slotItem.materias && slotItem.materias.length > 0 && (
-                                      <Box sx={{ mt: 1 }}>
-                                        <Typography variant='body2'>
-                                          마테리쟈:
-                                        </Typography>
-                                        {slotItem.materias.map((materia) => (
-                                          <Chip
-                                            key={materia.id}
-                                            label={materia.type_display}
-                                            size='small'
-                                            sx={{ mr: 0.5, mb: 0.5 }}
-                                          />
-                                        ))}
-                                      </Box>
-                                    )}
+                                    {/* 마테리쟈 정보 표시 및 관리 */}
+                                    <MateriaManager
+                                      bisItem={slotItem}
+                                      canModify={canModifyPlayer(selectedPlayer)}
+                                      maxSlots={slotItem.item.source === '제작템' ? 5 : (slotConfig.slot.includes('반지') || slotConfig.slot === '귀걸이' || slotConfig.slot === '목걸이' || slotConfig.slot === '팔찌') ? 1 : 2}
+                                      onSuccess={() => refetchBisDetail()}
+                                    />
                                   </>
                                 ) : (
                                   <Typography variant='body2' color='text.secondary'>
